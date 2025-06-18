@@ -1,0 +1,273 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===========================================
+    // HELPER FUNCTIONS
+    // ===========================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the resource
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Check if user has admin role
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.roles != null && 
+             'admin' in request.auth.token.roles;
+    }
+    
+    // Check if user has staff role
+    function isStaff() {
+      return isAuthenticated() && 
+             request.auth.token.roles != null && 
+             ('admin' in request.auth.token.roles || 'staff' in request.auth.token.roles);
+    }
+    
+    // Check if user has specific role
+    function hasRole(role) {
+      return isAuthenticated() && 
+             request.auth.token.roles != null && 
+             role in request.auth.token.roles;
+    }
+    
+    // Check if email is verified
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+    
+    // Validate user data structure
+    function isValidUserData() {
+      let requiredFields = ['email', 'firstName', 'lastName', 'createdAt'];
+      let allowedFields = [
+        'email', 'firstName', 'lastName', 'displayName', 'phoneNumber', 
+        'photoURL', 'emailVerified', 'status', 'roles', 'preferences', 
+        'profile', 'loginHistory', 'lastLoginAt', 'lastLogoutAt', 
+        'createdAt', 'updatedAt'
+      ];
+      
+      return requiredFields.toSet().isSubsetOf(resource.data.keys().toSet()) &&
+             resource.data.keys().toSet().isSubsetOf(allowedFields.toSet()) &&
+             resource.data.email is string &&
+             resource.data.firstName is string &&
+             resource.data.lastName is string;
+    }
+    
+    // Validate room data structure
+    function isValidRoomData() {
+      let requiredFields = ['title', 'description', 'price', 'capacity'];
+      let allowedFields = [
+        'title', 'description', 'price', 'capacity', 'roomType', 
+        'amenities', 'images', 'features', 'policies', 'location', 
+        'status', 'rating', 'reviewCount', 'isActive', 'createdAt', 'updatedAt'
+      ];
+      
+      return requiredFields.toSet().isSubsetOf(resource.data.keys().toSet()) &&
+             resource.data.keys().toSet().isSubsetOf(allowedFields.toSet()) &&
+             resource.data.price is number &&
+             resource.data.capacity is number &&
+             resource.data.price > 0 &&
+             resource.data.capacity > 0;
+    }
+    
+    // Validate booking data structure
+    function isValidBookingData() {
+      let requiredFields = ['userId', 'roomId', 'checkInDate', 'checkOutDate', 'guestCount', 'totalPrice'];
+      let allowedFields = [
+        'userId', 'roomId', 'roomDetails', 'checkInDate', 'checkOutDate', 
+        'guestCount', 'nights', 'guestInfo', 'pricing', 'totalPrice', 
+        'status', 'specialRequests', 'bookingSource', 'confirmationNumber', 
+        'paymentStatus', 'checkedIn', 'checkedOut', 'cancellationPolicy',
+        'cancellationReason', 'cancelledAt', 'refundAmount', 'refundPolicy',
+        'createdAt', 'updatedAt'
+      ];
+      
+      return requiredFields.toSet().isSubsetOf(resource.data.keys().toSet()) &&
+             resource.data.keys().toSet().isSubsetOf(allowedFields.toSet()) &&
+             resource.data.guestCount is number &&
+             resource.data.totalPrice is number &&
+             resource.data.guestCount > 0 &&
+             resource.data.totalPrice > 0;
+    }
+    
+    // Check if dates are valid
+    function isValidDateRange(checkIn, checkOut) {
+      return checkIn is timestamp && 
+             checkOut is timestamp && 
+             checkOut > checkIn &&
+             checkIn >= request.time;
+    }
+    
+    // ===========================================
+    // USERS COLLECTION RULES
+    // ===========================================
+    
+    match /users/{userId} {
+      // Allow read access to own profile or admin/staff
+      allow read: if isOwner(userId) || isStaff();
+      
+      // Allow create only by the user themselves
+      allow create: if isAuthenticated() && 
+                       isOwner(userId) && 
+                       isValidUserData();
+      
+      // Allow update of own profile with restrictions
+      allow update: if isOwner(userId) && 
+                       isValidUserData() &&
+                       // Prevent users from changing sensitive fields
+                       (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles', 'status']));
+      
+      // Admin can update any user
+      allow update: if isAdmin() && isValidUserData();
+      
+      // Only admin can delete users
+      allow delete: if isAdmin();
+      
+      // List users (admin only, with pagination)
+      allow list: if isAdmin();
+    }
+    
+    // ===========================================
+    // ROOMS COLLECTION RULES
+    // ===========================================
+    
+    match /rooms/{roomId} {
+      // Anyone can read active rooms
+      allow read: if resource.data.isActive == true;
+      
+      // Staff can read all rooms including inactive
+      allow read: if isStaff();
+      
+      // Only admin can create rooms
+      allow create: if isAdmin() && isValidRoomData();
+      
+      // Only admin can update rooms
+      allow update: if isAdmin() && isValidRoomData();
+      
+      // Only admin can delete rooms (soft delete by setting isActive to false)
+      allow delete: if isAdmin();
+      
+      // List rooms - public can see active rooms, staff can see all
+      allow list: if resource == null || 
+                     (resource.data.isActive == true) || 
+                     isStaff();
+    }
+    
+    // ===========================================
+    // BOOKINGS COLLECTION RULES
+    // ===========================================
+    
+    match /bookings/{bookingId} {
+      // Users can read their own bookings, staff can read all
+      allow read: if isOwner(resource.data.userId) || isStaff();
+      
+      // Authenticated users can create bookings
+      allow create: if isAuthenticated() && 
+                       isValidBookingData() &&
+                       isOwner(resource.data.userId) &&
+                       // Validate date range
+                       isValidDateRange(
+                         resource.data.checkInDate, 
+                         resource.data.checkOutDate
+                       ) &&
+                       // Check guest info is properly filled
+                       resource.data.guestInfo.firstName is string &&
+                       resource.data.guestInfo.lastName is string &&
+                       resource.data.guestInfo.email is string;
+      
+      // Users can update their own bookings (limited fields)
+      allow update: if isOwner(resource.data.userId) &&
+                       isValidBookingData() &&
+                       // Only allow updating specific fields
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['guestInfo', 'specialRequests', 'updatedAt']);
+      
+      // Staff can update any booking
+      allow update: if isStaff() && isValidBookingData();
+      
+      // Users can cancel their own bookings (status change to cancelled)
+      allow update: if isOwner(resource.data.userId) &&
+                       resource.data.status in ['confirmed', 'pending'] &&
+                       request.resource.data.status == 'cancelled' &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'cancellationReason', 'cancelledAt', 'updatedAt']);
+      
+      // Only admin can delete bookings
+      allow delete: if isAdmin();
+      
+      // List bookings - users can see their own, staff can see all
+      allow list: if isStaff();
+    }
+    
+    // User-specific booking queries
+    match /bookings/{bookingId} {
+      allow list: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+    }
+    
+    // ===========================================
+    // ADMIN COLLECTION (for system data)
+    // ===========================================
+    
+    match /admin/{document} {
+      // Only admins can access admin collection
+      allow read, write: if isAdmin();
+    }
+    
+    // ===========================================
+    // ANALYTICS COLLECTION (read-only for most)
+    // ===========================================
+    
+    match /analytics/{document} {
+      // Staff can read analytics
+      allow read: if isStaff();
+      
+      // Only admin can write analytics
+      allow write: if isAdmin();
+    }
+    
+    // ===========================================
+    // SUBCOLLECTIONS
+    // ===========================================
+    
+    // User subcollections (e.g., notifications, preferences)
+    match /users/{userId}/{subcollection}/{document} {
+      allow read, write: if isOwner(userId) || isStaff();
+    }
+    
+    // Room subcollections (e.g., reviews, images)
+    match /rooms/{roomId}/{subcollection}/{document} {
+      // Reviews can be read by anyone, written by authenticated users
+      allow read: if subcollection == 'reviews';
+      allow create: if subcollection == 'reviews' && 
+                       isAuthenticated() && 
+                       isEmailVerified();
+      allow update: if subcollection == 'reviews' && 
+                       isOwner(resource.data.userId);
+      
+      // Other subcollections are staff-only
+      allow read, write: if subcollection != 'reviews' && isStaff();
+    }
+    
+    // Booking subcollections (e.g., messages, documents)
+    match /bookings/{bookingId}/{subcollection}/{document} {
+      allow read, write: if isOwner(get(/databases/$(database)/documents/bookings/$(bookingId)).data.userId) || 
+                            isStaff();
+    }
+    
+    // ===========================================
+    // GLOBAL FALLBACK (DENY ALL)
+    // ===========================================
+    
+    // Deny access to any other documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

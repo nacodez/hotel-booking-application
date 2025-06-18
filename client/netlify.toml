@@ -1,0 +1,103 @@
+# Netlify Configuration for Frontend Deployment
+
+[build]
+  # Build command for production
+  command = "npm run build"
+  
+  # Directory to publish (Vite builds to 'dist' by default)
+  publish = "dist"
+  
+  # Node version
+  environment = { NODE_VERSION = "18" }
+
+[build.environment]
+  # Build environment variables
+  NODE_ENV = "production"
+  CI = "true"
+
+# Redirect rules for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# API proxy for development/preview
+[[redirects]]
+  from = "/api/*"
+  to = "https://your-production-api.railway.app/api/:splat"
+  status = 200
+  force = false
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://your-production-api.railway.app https://*.firebaseapp.com https://*.googleapis.com"
+
+# Cache static assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache service worker
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Forms handling (if using Netlify Forms)
+[functions]
+  directory = "netlify/functions"
+
+# Context-specific builds
+[context.production]
+  command = "npm run build"
+  environment = { NODE_ENV = "production" }
+
+[context.deploy-preview]
+  command = "npm run build:staging"
+  environment = { NODE_ENV = "staging" }
+
+[context.branch-deploy]
+  command = "npm run build:dev"
+  environment = { NODE_ENV = "development" }
+
+# Split testing (optional)
+[split_testing]
+  [[split_testing.tests]]
+    id = "homepage-hero"
+    path = "/"
+    branches = ["main", "hero-variant"]
+
+# Plugin configuration
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+  
+  [plugins.inputs.audits]
+    performance = true
+    accessibility = true
+    best-practices = true
+    seo = true
+    
+  [plugins.inputs.settings]
+    preset = "desktop"
+    
+  [plugins.inputs.assert]
+    assertions = """
+      {
+        "categories:performance": ["error", { "minScore": 0.9 }],
+        "categories:accessibility": ["error", { "minScore": 0.9 }],
+        "categories:best-practices": ["error", { "minScore": 0.9 }],
+        "categories:seo": ["error", { "minScore": 0.9 }]
+      }
+    """
+
+# Edge functions (optional for advanced caching)
+[edge_functions]
+  directory = "netlify/edge-functions"

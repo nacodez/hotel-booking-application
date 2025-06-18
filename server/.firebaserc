@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "your-firebase-project-id",
+    "development": "your-firebase-project-id-dev",
+    "staging": "your-firebase-project-id-staging",
+    "production": "your-firebase-project-id-prod"
+  },
+  "targets": {
+    "your-firebase-project-id": {
+      "hosting": {
+        "hotel-booking-app": [
+          "your-firebase-project-id"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

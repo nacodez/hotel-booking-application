@@ -1,0 +1,70 @@
+# Railway Configuration for Backend Deployment
+
+[build]
+# Build command
+command = "npm install"
+
+# Start command for production
+start = "npm start"
+
+# Health check endpoint
+healthcheck = "/api/health"
+
+# Port configuration (Railway will set PORT automatically)
+port = "$PORT"
+
+[deploy]
+# Restart policy
+restartPolicyType = "NEVER"
+
+# Auto-deploy from main branch
+autoRedeploy = true
+
+# Build and deploy settings
+buildCommand = "npm install --production"
+startCommand = "npm start"
+
+[variables]
+# Environment variables that should be set in Railway dashboard
+NODE_ENV = "production"
+
+[services.backend]
+# Service configuration
+name = "hotel-booking-api"
+type = "web"
+
+# Resource allocation
+memory = "512Mi"
+cpu = "0.5"
+
+# Scaling configuration
+minReplicas = 1
+maxReplicas = 3
+
+# Health check configuration
+healthCheck = "/api/health"
+healthCheckTimeout = "10s"
+healthCheckInterval = "30s"
+
+# Environment-specific configurations
+[environments.production]
+variables = [
+  "NODE_ENV=production",
+  "JWT_SECRET",
+  "JWT_REFRESH_SECRET",
+  "FIREBASE_PROJECT_ID",
+  "FIREBASE_PRIVATE_KEY",
+  "FIREBASE_CLIENT_EMAIL",
+  "CLIENT_URL"
+]
+
+[environments.staging]
+variables = [
+  "NODE_ENV=staging",
+  "JWT_SECRET",
+  "JWT_REFRESH_SECRET", 
+  "FIREBASE_PROJECT_ID",
+  "FIREBASE_PRIVATE_KEY",
+  "FIREBASE_CLIENT_EMAIL",
+  "CLIENT_URL"
+]
