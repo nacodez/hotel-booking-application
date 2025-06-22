@@ -18,30 +18,24 @@ const SEOHead = ({
   breadcrumbs = [],
   structuredData = null
 }) => {
-  // Get environment variables for site configuration
   const siteUrl = import.meta.env.VITE_SITE_URL || 'https://hotelbooking.com'
   const siteName = import.meta.env.VITE_APP_NAME || 'Hotel Booking System'
   const defaultDescription = import.meta.env.VITE_SITE_DESCRIPTION || 'Find and book your perfect hotel room with ease'
   const defaultKeywords = import.meta.env.VITE_SITE_KEYWORDS || 'hotel,booking,reservation,travel,accommodation'
 
-  // Construct full URL
   const fullUrl = url ? `${siteUrl}${url}` : siteUrl
   const fullCanonicalUrl = canonicalUrl ? `${siteUrl}${canonicalUrl}` : fullUrl
 
-  // Construct full title
   const fullTitle = title ? `${title} - ${siteName}` : siteName
 
-  // Default image
   const defaultImage = `${siteUrl}/og-image.jpg`
   const fullImageUrl = image ? (image.startsWith('http') ? image : `${siteUrl}${image}`) : defaultImage
 
-  // Robots meta content
   const robotsContent = [
     noIndex ? 'noindex' : 'index',
     noFollow ? 'nofollow' : 'follow'
   ].join(', ')
 
-  // Generate JSON-LD structured data for hotels
   const generateHotelStructuredData = () => {
     if (type === 'hotel' && structuredData) {
       return {
@@ -80,7 +74,6 @@ const SEOHead = ({
     return null
   }
 
-  // Generate breadcrumb structured data
   const generateBreadcrumbData = () => {
     if (breadcrumbs.length > 0) {
       return {
@@ -97,7 +90,6 @@ const SEOHead = ({
     return null
   }
 
-  // Generate organization structured data
   const generateOrganizationData = () => ({
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -118,7 +110,6 @@ const SEOHead = ({
     ]
   })
 
-  // Generate website structured data
   const generateWebsiteData = () => ({
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -135,7 +126,6 @@ const SEOHead = ({
     }
   })
 
-  // Combine all structured data
   const allStructuredData = [
     generateOrganizationData(),
     generateWebsiteData(),
@@ -146,15 +136,13 @@ const SEOHead = ({
 
   return (
     <Helmet>
-      {/* Basic Meta Tags */}
+
       <title>{fullTitle}</title>
       <meta name="description" content={description || defaultDescription} />
       <meta name="keywords" content={keywords || defaultKeywords} />
       <meta name="author" content={author || siteName} />
       <meta name="robots" content={robotsContent} />
       <link rel="canonical" href={fullCanonicalUrl} />
-
-      {/* Open Graph Tags */}
       <meta property="og:type" content={type} />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description || defaultDescription} />
@@ -162,16 +150,12 @@ const SEOHead = ({
       <meta property="og:url" content={fullUrl} />
       <meta property="og:site_name" content={siteName} />
       <meta property="og:locale" content="en_US" />
-
-      {/* Twitter Card Tags */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description || defaultDescription} />
       <meta name="twitter:image" content={fullImageUrl} />
       <meta name="twitter:site" content="@hotelbooking" />
       <meta name="twitter:creator" content="@hotelbooking" />
-
-      {/* Article specific tags */}
       {type === 'article' && publishedTime && (
         <meta property="article:published_time" content={publishedTime} />
       )}
@@ -181,8 +165,6 @@ const SEOHead = ({
       {type === 'article' && author && (
         <meta property="article:author" content={author} />
       )}
-
-      {/* Additional Meta Tags */}
       <meta name="theme-color" content="#1a1a1a" />
       <meta name="msapplication-TileColor" content="#1a1a1a" />
       <meta name="application-name" content={siteName} />
@@ -190,20 +172,12 @@ const SEOHead = ({
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       <meta name="mobile-web-app-capable" content="yes" />
-
-      {/* Viewport */}
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-
-      {/* DNS Prefetch */}
       <link rel="dns-prefetch" href="//fonts.googleapis.com" />
       <link rel="dns-prefetch" href="//fonts.gstatic.com" />
       <link rel="dns-prefetch" href="//www.google-analytics.com" />
-
-      {/* Preconnect for critical resources */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
-      {/* Alternate URLs for different languages/regions */}
       {alternateUrls.map(({ url: altUrl, hreflang }) => (
         <link
           key={hreflang}
@@ -212,15 +186,11 @@ const SEOHead = ({
           href={`${siteUrl}${altUrl}`}
         />
       ))}
-
-      {/* Structured Data */}
       {allStructuredData.map((data, index) => (
         <script key={index} type="application/ld+json">
           {JSON.stringify(data)}
         </script>
       ))}
-
-      {/* Google Analytics */}
       {import.meta.env.VITE_GOOGLE_ANALYTICS_ID && import.meta.env.VITE_ENABLE_ANALYTICS === 'true' && (
         <>
           <script
@@ -244,7 +214,6 @@ const SEOHead = ({
   )
 }
 
-// Higher-order component for pages that need SEO
 export const withSEO = (Component, defaultSEOProps = {}) => {
   return function SEOWrappedComponent(props) {
     const seoProps = { ...defaultSEOProps, ...props.seo }
@@ -258,12 +227,10 @@ export const withSEO = (Component, defaultSEOProps = {}) => {
   }
 }
 
-// Hook for updating SEO dynamically
 export const useSEO = (seoData) => {
   return <SEOHead {...seoData} />
 }
 
-// Common SEO configurations for different page types
 export const seoConfigs = {
   home: {
     title: 'Find Your Perfect Hotel',

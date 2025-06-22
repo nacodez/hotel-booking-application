@@ -9,7 +9,6 @@ const AdminDashboard = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // User management state
   const [pendingUsers, setPendingUsers] = useState([])
   const [allUsers, setAllUsers] = useState([])
   const [userFilters, setUserFilters] = useState({
@@ -20,7 +19,6 @@ const AdminDashboard = () => {
     limit: 20
   })
 
-  // Hotel management state
   const [pendingHotels, setPendingHotels] = useState([])
   const [allHotels, setAllHotels] = useState([])
   const [hotelFilters, setHotelFilters] = useState({
@@ -30,7 +28,6 @@ const AdminDashboard = () => {
     limit: 20
   })
 
-  // Action modals state
   const [showActionModal, setShowActionModal] = useState(false)
   const [actionData, setActionData] = useState({
     type: '', // 'approve-user', 'reject-user', 'approve-hotel', 'reject-hotel'

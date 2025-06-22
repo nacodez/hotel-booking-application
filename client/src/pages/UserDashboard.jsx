@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import BookingDetailsModal from '../components/BookingDetailsModal'
 import CancelBookingModal from '../components/CancelBookingModal'
+import { bookingAPI, roomAPI } from '../services/apiService'
 
 const UserDashboard = () => {
   const { currentUser, logoutUser } = useAuth()
@@ -18,77 +19,132 @@ const UserDashboard = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [bookingToCancel, setBookingToCancel] = useState(null)
+  const [bookingError, setBookingError] = useState(null)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
 
   const bookingsPerPage = 6
 
-  // Mock data - replace with actual API calls
+  const getSearchPlaceholder = () => {
+    return isMobile ? "Search by room or confirmation..." : "Search by room name or confirmation number..."
+  }
+
+  const getRoomFallbackImage = (roomName, roomId) => {
+    const roomType = roomName?.toLowerCase() || ''
+    
+    if (roomType.includes('suite') || roomType.includes('executive')) {
+      return 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=80' // Luxury suite
+    } else if (roomType.includes('deluxe')) {
+      return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80' // Deluxe room
+    } else if (roomType.includes('standard')) {
+      return 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80' // Standard room
+    } else if (roomType.includes('king')) {
+      return 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80' // King bed room
+    } else if (roomType.includes('queen')) {
+      return 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80' // Queen bed room
+    } else {
+      const fallbacks = [
+        'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80',
+        'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=80',
+        'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80',
+        'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80'
+      ]
+      const index = (roomId || '').length % fallbacks.length
+      return fallbacks[index]
+    }
+  }
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   useEffect(() => {
     const fetchUserBookings = async () => {
       try {
         setIsLoadingBookings(true)
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        setBookingError(null)
         
-        const mockBookings = [
-          {
-            id: 1,
-            confirmationNumber: 'BK20254567890',
-            roomName: 'DELUXE OCEAN VIEW SUITE',
-            roomImage: '/placeholder-room.jpg',
-            checkInDate: '2025-01-15',
-            checkOutDate: '2025-01-18',
-            guestCount: 2,
-            totalAmount: 3240,
-            status: 'confirmed',
-            bookedDate: '2024-12-20',
-            contactInfo: {
-              name: 'John Doe',
-              email: 'john@example.com',
-              phone: '+65 1234 5678'
-            },
-            specialRequests: 'Late check-in requested'
-          },
-          {
-            id: 2,
-            confirmationNumber: 'BK20251234567',
-            roomName: 'PREMIUM CITY ROOM',
-            roomImage: '/placeholder-room.jpg',
-            checkInDate: '2024-12-01',
-            checkOutDate: '2024-12-03',
-            guestCount: 1,
-            totalAmount: 1500,
-            status: 'completed',
-            bookedDate: '2024-11-15',
-            contactInfo: {
-              name: 'John Doe',
-              email: 'john@example.com',
-              phone: '+65 1234 5678'
-            },
-            specialRequests: ''
-          },
-          {
-            id: 3,
-            confirmationNumber: 'BK20259876543',
-            roomName: 'EXECUTIVE BUSINESS SUITE',
-            roomImage: '/placeholder-room.jpg',
-            checkInDate: '2024-11-10',
-            checkOutDate: '2024-11-12',
-            guestCount: 2,
-            totalAmount: 2700,
-            status: 'cancelled',
-            bookedDate: '2024-10-25',
-            contactInfo: {
-              name: 'John Doe',
-              email: 'john@example.com',
-              phone: '+65 1234 5678'
-            },
-            specialRequests: ''
-          }
-        ]
+        const bookingResponse = await bookingAPI.getUserBookingHistory()
         
-        setUserBookings(mockBookings)
+        if (!bookingResponse.success) {
+          throw new Error(bookingResponse.message || 'Failed to fetch bookings')
+        }
+
+        const bookings = bookingResponse.data || []
+
+        if (bookings.length === 0) {
+          setUserBookings([])
+          return
+        }
+        const enrichedBookings = await Promise.all(
+          bookings.map(async (booking, index) => {
+            try {
+              const roomResponse = await roomAPI.getRoomDetails(booking.roomId)
+              
+              const roomData = roomResponse.success ? roomResponse.data : null
+              
+              let roomImage
+              if (roomData?.images && Array.isArray(roomData.images) && roomData.images.length > 0) {
+                roomImage = roomData.images[0]
+              } else {
+                roomImage = getRoomFallbackImage(booking.roomName, booking.roomId)
+              }
+              
+              const enrichedBooking = {
+                ...booking,
+                roomImage: roomImage,
+                contactInfo: {
+                  name: `${booking.guestInformation?.firstName || ''} ${booking.guestInformation?.lastName || ''}`.trim(),
+                  email: booking.guestInformation?.email || '',
+                  phone: booking.guestInformation?.phoneNumber || ''
+                },
+                specialRequests: booking.guestInformation?.specialRequests || '',
+                bookedDate: booking.createdAt
+              }
+              
+              return enrichedBooking
+            } catch (roomError) {
+              console.error(` Failed to fetch room details for booking:`, {
+                bookingId: booking.id,
+                roomId: booking.roomId,
+                roomName: booking.roomName,
+                error: roomError.message,
+                stack: roomError.stack
+              })
+              
+              const fallbackImage = getRoomFallbackImage(booking.roomName, booking.roomId)
+              
+              return {
+                ...booking,
+                roomImage: fallbackImage,
+                contactInfo: {
+                  name: `${booking.guestInformation?.firstName || ''} ${booking.guestInformation?.lastName || ''}`.trim(),
+                  email: booking.guestInformation?.email || '',
+                  phone: booking.guestInformation?.phoneNumber || ''
+                },
+                specialRequests: booking.guestInformation?.specialRequests || '',
+                bookedDate: booking.createdAt
+              }
+            }
+          })
+        )
+        
+        setUserBookings(enrichedBookings)
       } catch (error) {
-        console.error('Error fetching bookings:', error)
+        console.error(' Error fetching bookings:', error)
+        console.error(' Error details:', {
+          message: error.message,
+          stack: error.stack,
+          response: error.response?.data
+        })
+        
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to load bookings'
+        setBookingError(errorMessage)
+        setUserBookings([]) // Set empty array on error
       } finally {
         setIsLoadingBookings(false)
       }
@@ -96,10 +152,10 @@ const UserDashboard = () => {
 
     if (currentUser) {
       fetchUserBookings()
+    } else {
     }
   }, [currentUser])
 
-  // Filter bookings based on active tab
   const getFilteredBookings = () => {
     const today = new Date()
     let filtered = userBookings
@@ -116,7 +172,6 @@ const UserDashboard = () => {
       })
     }
 
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(booking =>
         booking.roomName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,7 +179,6 @@ const UserDashboard = () => {
       )
     }
 
-    // Apply sorting
     switch (sortBy) {
       case 'date-desc':
         filtered.sort((a, b) => new Date(b.checkInDate) - new Date(a.checkInDate))
@@ -195,8 +249,12 @@ const UserDashboard = () => {
 
   const confirmCancelBooking = async () => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const response = await bookingAPI.cancelBookingReservation(bookingToCancel.id)
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to cancel booking')
+      }
       
       setUserBookings(prev =>
         prev.map(booking =>
@@ -208,8 +266,18 @@ const UserDashboard = () => {
       
       setShowCancelModal(false)
       setBookingToCancel(null)
+      
     } catch (error) {
       console.error('Error cancelling booking:', error)
+      console.error('Cancel error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to cancel booking'
+      
+      alert(`Failed to cancel booking: ${errorMessage}`)
     }
   }
 
@@ -235,9 +303,10 @@ const UserDashboard = () => {
   const handleLogout = async () => {
     try {
       await logoutUser()
-      navigate('/login')
+      navigate('/')
     } catch (error) {
       console.error('Logout error:', error)
+      navigate('/')
     }
   }
 
@@ -262,24 +331,6 @@ const UserDashboard = () => {
   return (
     <div className="user-dashboard">
       <div className="container">
-        {/* Welcome Section */}
-        <div className="dashboard-header">
-          <div className="welcome-section">
-            <h1 className="welcome-title">
-              Welcome back, {currentUser.displayName || currentUser.email}!
-            </h1>
-            <p className="welcome-subtitle">
-              Manage your bookings and explore new destinations
-            </p>
-          </div>
-          <div className="header-actions">
-            <button className="btn btn-secondary" onClick={handleLogout}>
-              Sign Out
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
         <div className="dashboard-tabs">
           <button
             className={`tab-button ${activeTab === 'upcoming' ? 'active' : ''}`}
@@ -305,15 +356,13 @@ const UserDashboard = () => {
             Past Bookings
           </button>
         </div>
-
-        {/* Search and Filter Controls */}
         {filteredBookings.length > 0 && (
           <div className="dashboard-controls">
             <div className="search-section">
               <div className="search-input-container">
                 <input
                   type="text"
-                  placeholder="Search by room name or confirmation number..."
+                  placeholder={getSearchPlaceholder()}
                   value={searchTerm}
                   onChange={handleSearchChange}
                   className="search-input"
@@ -344,9 +393,8 @@ const UserDashboard = () => {
           </div>
         )}
 
-        {/* Bookings Content */}
         <div className="dashboard-content">
-          {paginatedBookings.length === 0 ? (
+          {paginatedBookings.length === 0 && !bookingError ? (
             <div className="empty-state">
               {activeTab === 'upcoming' ? (
                 <div className="empty-content">
@@ -380,7 +428,7 @@ const UserDashboard = () => {
             </div>
           ) : (
             <>
-              {/* Bookings Grid */}
+
               <div className="bookings-grid">
                 {paginatedBookings.map(booking => (
                   <div key={booking.id} className="booking-card">
@@ -444,8 +492,6 @@ const UserDashboard = () => {
                   </div>
                 ))}
               </div>
-
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="pagination">
                   <button
@@ -476,8 +522,6 @@ const UserDashboard = () => {
           )}
         </div>
       </div>
-
-      {/* Modals */}
       {showDetailsModal && selectedBooking && (
         <BookingDetailsModal
           booking={selectedBooking}

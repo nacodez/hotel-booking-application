@@ -23,10 +23,6 @@ const BookingProgressIndicator = ({ currentStep = 1 }) => {
               </div>
               <span className="step-label">{step.label}</span>
             </div>
-            
-            {index < steps.length - 1 && (
-              <div className={`progress-line ${currentStep > step.id ? 'completed' : ''}`}></div>
-            )}
           </div>
         ))}
       </div>

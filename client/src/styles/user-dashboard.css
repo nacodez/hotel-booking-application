@@ -177,7 +177,7 @@
   white-space: nowrap;
 }
 
-.sort-select {
+.user-dashboard .sort-select {
   padding: var(--spacing-2) var(--spacing-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -481,44 +481,57 @@
   color: var(--color-primary);
 }
 
-.results-count {
+.user-dashboard .results-count {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
 /* ===== MODAL STYLES ===== */
+/* Beautiful modal styling based on Email Confirmation modal */
+
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: var(--spacing-4);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .booking-details-modal,
 .cancel-booking-modal {
   background-color: var(--color-background);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--color-border);
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  animation: modalSlideIn 0.3s ease-out;
+  animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
 }
 
 @keyframes modalSlideIn {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
+    transform: translateY(30px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -530,8 +543,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-6);
+  padding: var(--spacing-6) var(--spacing-6) var(--spacing-4) var(--spacing-6);
   border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, rgba(255, 255, 255, 0.8) 100%);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .modal-title {
@@ -539,37 +554,138 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-primary);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
 }
 
 .modal-close {
   background: none;
   border: none;
   padding: var(--spacing-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   color: var(--color-text-muted);
   cursor: pointer;
   transition: all var(--transition-fast);
+  font-size: var(--text-xl);
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-close:hover {
-  background-color: var(--color-secondary);
+  background-color: rgba(0, 0, 0, 0.1);
   color: var(--color-primary);
+  transform: scale(1.1);
 }
 
-.modal-content {
+.modal-body {
   padding: var(--spacing-6);
 }
 
-.modal-actions {
-  padding: var(--spacing-6);
-  border-top: 1px solid var(--color-border);
+.modal-footer {
+  padding: var(--spacing-4) var(--spacing-6) var(--spacing-6) var(--spacing-6);
   display: flex;
   gap: var(--spacing-3);
   justify-content: flex-end;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-secondary);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }
 
-/* ===== BOOKING DETAILS MODAL SPECIFIC ===== */
-.booking-summary-section {
+.modal-btn {
+  padding: var(--spacing-3) var(--spacing-6);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 100px;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-btn.secondary {
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: 2px solid var(--color-border);
+}
+
+.modal-btn.secondary:hover:not(:disabled) {
+  background-color: var(--color-secondary);
+  color: var(--color-primary);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.modal-btn.primary {
+  background: linear-gradient(135deg, var(--color-accent) 0%, #2563eb 100%);
+  color: white;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+}
+
+.modal-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, var(--color-accent) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px 0 rgba(59, 130, 246, 0.5);
+}
+
+.modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.modal-btn.primary:disabled {
+  background: var(--color-text-muted);
+  box-shadow: none;
+}
+
+/* Mobile responsive overrides for the modal design */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: var(--spacing-3);
+  }
+
+  .booking-details-modal,
+  .cancel-booking-modal {
+    max-width: 95vw;
+    max-height: 95vh;
+    margin: var(--spacing-2);
+  }
+
+  .modal-header {
+    padding: var(--spacing-4) var(--spacing-4) var(--spacing-3) var(--spacing-4);
+  }
+
+  .modal-title {
+    font-size: var(--text-lg);
+  }
+
+  .modal-body {
+    padding: var(--spacing-4);
+  }
+
+  .modal-footer {
+    padding: var(--spacing-3) var(--spacing-4) var(--spacing-4) var(--spacing-4);
+    flex-direction: column-reverse;
+    gap: var(--spacing-3);
+  }
+
+  .modal-btn {
+    width: 100%;
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+}
+
+/* ===== MODAL CONTENT SPECIFIC STYLING ===== */
+/* Content-specific styles for both booking and cancel modals */
+.user-dashboard .booking-summary-section {
   display: flex;
   gap: var(--spacing-4);
   margin-bottom: var(--spacing-6);
@@ -981,8 +1097,26 @@
     padding: var(--spacing-4);
   }
 
+  .search-section {
+    max-width: none;
+    width: 100%;
+  }
+
+  .search-input {
+    font-size: var(--text-sm);
+    padding: var(--spacing-2) var(--spacing-3);
+    padding-right: var(--spacing-8);
+    width: 100%;
+  }
+
+  .search-icon {
+    right: var(--spacing-2);
+  }
+
   .sort-section {
     justify-content: space-between;
+    width: 100%;
+    align-items: center;
   }
 
   .bookings-grid {
@@ -1050,32 +1184,6 @@
     order: -1;
   }
 
-  .modal-overlay {
-    padding: var(--spacing-3);
-  }
-
-  .booking-details-modal,
-  .cancel-booking-modal {
-    max-height: 95vh;
-  }
-
-  .modal-header {
-    padding: var(--spacing-4);
-  }
-
-  .modal-content {
-    padding: var(--spacing-4);
-  }
-
-  .modal-actions {
-    padding: var(--spacing-4);
-    flex-direction: column-reverse;
-    gap: var(--spacing-3);
-  }
-
-  .modal-actions .btn {
-    width: 100%;
-  }
 
   .booking-summary-section {
     flex-direction: column;
@@ -1123,6 +1231,38 @@
 
   .dashboard-controls {
     padding: var(--spacing-3);
+    margin: 0 var(--spacing-3) var(--spacing-4);
+  }
+
+  .search-section {
+    max-width: none;
+    width: 100%;
+  }
+
+  .search-input {
+    font-size: var(--text-xs);
+    padding: var(--spacing-2);
+    padding-right: var(--spacing-6);
+    width: 100%;
+  }
+
+  .search-icon {
+    right: var(--spacing-1);
+  }
+
+  .search-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sort-section {
+    justify-content: space-between;
+    width: 100%;
+    align-items: center;
+  }
+
+  .sort-select {
+    min-width: 120px;
   }
 
   .bookings-grid {

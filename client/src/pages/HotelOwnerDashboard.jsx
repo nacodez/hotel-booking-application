@@ -9,18 +9,15 @@ const HotelOwnerDashboard = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // Applications state
   const [applications, setApplications] = useState([])
   const [hotels, setHotels] = useState([])
   const [selectedHotel, setSelectedHotel] = useState(null)
   const [hotelRooms, setHotelRooms] = useState([])
 
-  // Modal state
   const [showModal, setShowModal] = useState(false)
   const [modalType, setModalType] = useState('') // 'hotel-application', 'room-form'
   const [editingRoom, setEditingRoom] = useState(null)
 
-  // Form state
   const [hotelFormData, setHotelFormData] = useState({
     hotelName: '',
     description: '',
@@ -89,6 +86,10 @@ const HotelOwnerDashboard = () => {
     loadDashboardData()
   }, [activeTab])
 
+  const formatPrice = (price) => {
+    return `S$${Math.round(price)}`
+  }
+
   const loadDashboardData = async () => {
     setIsLoading(true)
     setError('')
@@ -135,7 +136,6 @@ const HotelOwnerDashboard = () => {
       setShowModal(false)
       await loadApplications()
       
-      // Reset form
       setHotelFormData({
         hotelName: '',
         description: '',
@@ -188,7 +188,6 @@ const HotelOwnerDashboard = () => {
         await loadHotelRooms(selectedHotel.id)
       }
       
-      // Reset form
       setRoomFormData({
         hotelId: selectedHotel?.id || '',
         roomNumber: '',
@@ -366,7 +365,7 @@ const HotelOwnerDashboard = () => {
         <p className="room-number">Room #{room.roomNumber}</p>
         <p className="room-type">{room.roomType} room</p>
         <p className="description">{room.description}</p>
-        <p className="price">${room.price}/night</p>
+        <p className="price">{formatPrice(room.price)}/night</p>
         <p className="capacity">Capacity: {room.capacity} guests</p>
         <p className="status">
           Status: <span className={`status-badge ${room.status}`}>{room.status}</span>

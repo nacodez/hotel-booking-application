@@ -19,7 +19,8 @@ const RoomDetailsPage = () => {
     const fetchRoomDetails = async () => {
       try {
         setIsLoadingRoom(true)
-        const room = await hotelBookingAPI.getRoomDetails(roomId)
+        const response = await hotelBookingAPI.getRoomDetails(roomId)
+        const room = response.success ? response.data : response
         setRoomDetails(room)
       } catch (error) {
         console.error('Error fetching room details:', error)
@@ -39,6 +40,10 @@ const RoomDetailsPage = () => {
     }))
   }
 
+  const formatPrice = (price) => {
+    return `S$${Math.round(price)}`
+  }
+
   const handleRoomSelection = () => {
     if (!currentUser) {
       navigate('/auth')
@@ -48,6 +53,7 @@ const RoomDetailsPage = () => {
     const bookingDetails = {
       roomId: roomDetails.id,
       roomName: roomDetails.name,
+      roomImage: roomDetails.images?.[0] || roomDetails.image || 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80',
       pricePerNight: roomDetails.pricePerNight,
       ...bookingDates
     }
@@ -144,7 +150,7 @@ const RoomDetailsPage = () => {
               </div>
 
               <div className="price-display">
-                <h4>${roomDetails.pricePerNight}/night</h4>
+                <h4>{formatPrice(roomDetails.pricePerNight)}/night</h4>
               </div>
 
               <button 

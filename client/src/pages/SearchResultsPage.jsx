@@ -1,25 +1,27 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { hotelBookingAPI } from '../services/apiService'
+import { useAuth } from '../context/AuthContext'
+import { hotelBookingAPI, roomAPI } from '../services/apiService'
 import BookingProgressIndicator from '../components/BookingProgressIndicator'
-import DateSummaryBar from '../components/DateSummaryBar'
 import RoomCard from '../components/RoomCard'
+import PaginationControls from '../components/PaginationControls'
+import '../styles/pagination.css'
 
 const SearchResultsPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { currentUser } = useAuth()
   const [availableRooms, setAvailableRooms] = useState([])
   const [filteredRooms, setFilteredRooms] = useState([])
   const [isLoadingResults, setIsLoadingResults] = useState(true)
   const [searchError, setSearchError] = useState(null)
   const [searchCriteria, setSearchCriteria] = useState({})
+  const [isBrowsingMode, setIsBrowsingMode] = useState(false)
   const [sortBy, setSortBy] = useState('price-low')
-  const [filters, setFilters] = useState({
-    roomType: '',
-    amenities: [],
-    priceRange: { min: 0, max: 10000 }
-  })
-  const [showFilters, setShowFilters] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
+  const [isChangingPage, setIsChangingPage] = useState(false)
+  const roomsPerPage = 10
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search)
@@ -32,114 +34,53 @@ const SearchResultsPage = () => {
     }
     setSearchCriteria(criteria)
 
-    const fetchAvailableRooms = async () => {
+    const hasSearchCriteria = criteria.destinationCity && criteria.checkInDate && criteria.checkOutDate
+    setIsBrowsingMode(!hasSearchCriteria)
+
+    const fetchRooms = async (page = 1) => {
       try {
         setIsLoadingResults(true)
         setSearchError(null)
         
-        // Call real API instead of using mock data
-        const response = await hotelBookingAPI.searchAvailableRooms(criteria)
+        let response
+        
+        if (hasSearchCriteria) {
+          response = await hotelBookingAPI.searchAvailableRooms(criteria, page, roomsPerPage)
+        } else {
+          response = await roomAPI.getAllRooms(page, roomsPerPage)
+        }
         
         if (response.success) {
           setAvailableRooms(response.data)
           setFilteredRooms(response.data)
+          setPagination(response.pagination)
         } else {
-          throw new Error(response.message || 'Failed to search rooms')
+          throw new Error(response.message || 'Failed to fetch rooms')
         }
       } catch (error) {
         console.error('Error fetching rooms:', error)
-        
-        // If API fails, fall back to mock data for demo purposes
-        console.log('Falling back to mock data for demo...')
-        const mockRooms = [
-          {
-            id: 'room_1',
-            title: 'DELUXE OCEAN VIEW SUITE',
-            subtitle: 'LOREM IPSUM DOLOR SIT AMET',
-            description: 'Spacious suite with breathtaking ocean views, featuring premium amenities and elegant furnishings for the ultimate luxury experience.',
-            image: '/placeholder-room.jpg',
-            price: 1080,
-            pricePerNight: 1080,
-            amenities: ['Ocean View', 'King Bed', 'WiFi', 'Balcony'],
-            roomType: 'suite',
-            capacity: 2,
-            maxOccupancy: 2
-          },
-          {
-            id: 'room_2',
-            title: 'PREMIUM CITY ROOM',
-            subtitle: 'CONSECTETUR ADIPISCING ELIT',
-            description: 'Modern city room with contemporary design and all essential amenities for a comfortable stay in the heart of the city.',
-            image: '/placeholder-room.jpg',
-            price: 750,
-            pricePerNight: 750,
-            amenities: ['City View', 'Queen Bed', 'WiFi', 'Work Desk'],
-            roomType: 'standard',
-            capacity: 2,
-            maxOccupancy: 2
-          },
-          {
-            id: 'room_3',
-            title: 'EXECUTIVE BUSINESS SUITE',
-            subtitle: 'SED DO EIUSMOD TEMPOR',
-            description: 'Perfect for business travelers, featuring a separate work area, high-speed internet, and executive lounge access.',
-            image: '/placeholder-room.jpg',
-            price: 1350,
-            pricePerNight: 1350,
-            amenities: ['Lounge Access', 'King Bed', 'Work Area', 'Minibar'],
-            roomType: 'executive',
-            capacity: 2,
-            maxOccupancy: 2
-          }
-        ]
-        
-        setAvailableRooms(mockRooms)
-        setFilteredRooms(mockRooms)
-        setSearchError('Using demo data - API connection pending')
+        setSearchError('Unable to load rooms. Please try again later.')
+        setPagination(null)
       } finally {
         setIsLoadingResults(false)
+        setIsChangingPage(false)
       }
     }
 
-    if (criteria.destinationCity && criteria.checkInDate && criteria.checkOutDate) {
-      fetchAvailableRooms()
-    } else {
-      setSearchError('Missing required search parameters')
-      setIsLoadingResults(false)
-    }
+    setCurrentPage(1)
+    setPagination(null)
+    fetchRooms(1)
   }, [location.search])
 
-  // Sort and filter rooms
   useEffect(() => {
     let rooms = [...availableRooms]
 
-    // Apply filters
-    if (filters.roomType) {
-      rooms = rooms.filter(room => room.roomType === filters.roomType)
-    }
-
-    if (filters.amenities.length > 0) {
-      rooms = rooms.filter(room => 
-        filters.amenities.some(amenity => 
-          room.amenities.some(roomAmenity => 
-            roomAmenity.toLowerCase().includes(amenity.toLowerCase())
-          )
-        )
-      )
-    }
-
-    rooms = rooms.filter(room => {
-      const price = room.pricePerNight || room.price || 0
-      return price >= filters.priceRange.min && price <= filters.priceRange.max
-    })
-
-    // Apply sorting
     switch (sortBy) {
       case 'price-low':
-        rooms.sort((a, b) => (a.pricePerNight || a.price || 0) - (b.pricePerNight || b.price || 0))
+        rooms.sort((a, b) => (a.price || 0) - (b.price || 0))
         break
       case 'price-high':
-        rooms.sort((a, b) => (b.pricePerNight || b.price || 0) - (a.pricePerNight || a.price || 0))
+        rooms.sort((a, b) => (b.price || 0) - (a.price || 0))
         break
       case 'name':
         rooms.sort((a, b) => a.title.localeCompare(b.title))
@@ -149,53 +90,161 @@ const SearchResultsPage = () => {
     }
 
     setFilteredRooms(rooms)
-  }, [availableRooms, sortBy, filters])
+  }, [availableRooms, sortBy])
 
   const handleSortChange = (e) => {
     setSortBy(e.target.value)
   }
 
+  const handlePageChange = async (newPage) => {
+    if (newPage === currentPage || isLoadingResults || isChangingPage) return
+    
+    setIsChangingPage(true)
+    setCurrentPage(newPage)
+    
+    try {
+      const hasSearchCriteria = searchCriteria.destinationCity && searchCriteria.checkInDate && searchCriteria.checkOutDate
+      let response
+      
+      if (hasSearchCriteria) {
+        response = await hotelBookingAPI.searchAvailableRooms(searchCriteria, newPage, roomsPerPage)
+      } else {
+        response = await roomAPI.getAllRooms(newPage, roomsPerPage)
+      }
+      
+      if (response.success) {
+        setAvailableRooms(response.data)
+        setFilteredRooms(response.data)
+        setPagination(response.pagination)
+        
+        const roomControls = document.querySelector('.room-controls')
+        if (roomControls) {
+          roomControls.scrollIntoView({ behavior: 'smooth' })
+        }
+      }
+    } catch (error) {
+      console.error('Error changing page:', error)
+      setSearchError('Unable to load page. Please try again.')
+    } finally {
+      setIsChangingPage(false)
+    }
+  }
+
+  const formatDisplayDate = (dateString) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).toUpperCase().replace(',', ',')
+  }
+
+  const calculateNights = () => {
+    if (!searchCriteria.checkInDate || !searchCriteria.checkOutDate) return 0
+    const checkIn = new Date(searchCriteria.checkInDate)
+    const checkOut = new Date(searchCriteria.checkOutDate)
+    const timeDiff = checkOut.getTime() - checkIn.getTime()
+    return Math.ceil(timeDiff / (1000 * 3600 * 24))
+  }
+
   const handleBookRoom = (room) => {
+    if (!currentUser) {
+      const bookingIntent = {
+        room: {
+          id: room.id,
+          title: room.title,
+          image: room.images?.[0] || room.image || 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80',
+          price: room.price,
+          pricePerNight: room.pricePerNight || room.price
+        },
+        searchCriteria,
+        isBrowsingMode
+      }
+      
+      navigate('/login', {
+        state: {
+          returnTo: isBrowsingMode ? '/' : '/booking/confirmation',
+          bookingIntent,
+          message: 'Please log in to continue with your booking'
+        }
+      })
+      return
+    }
+    
+    if (isBrowsingMode) {
+      navigate('/?selectDates=true', {
+        state: {
+          selectedRoom: {
+            id: room.id,
+            title: room.title,
+            price: room.price
+          }
+        }
+      })
+      return
+    }
+
     navigate('/booking/confirmation', {
       state: {
         bookingDetails: {
           roomId: room.id,
           roomName: room.title,
+          roomImage: room.images?.[0] || room.image || 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80',
           pricePerNight: room.pricePerNight || room.price,
           ...searchCriteria
         }
       }
     })
   }
-
-  const toggleFilters = () => {
-    setShowFilters(!showFilters)
-  }
-
   return (
     <div className="room-selection-page">
-      {/* Progress Indicator */}
-      <BookingProgressIndicator currentStep={2} />
-      
-      {/* Date Summary Bar */}
-      <DateSummaryBar 
-        checkInDate={searchCriteria.checkInDate}
-        checkOutDate={searchCriteria.checkOutDate}
-        guestCount={searchCriteria.guestCount}
-        roomCount={searchCriteria.roomCount}
-      />
+
+      {!isBrowsingMode && <BookingProgressIndicator currentStep={2} />}
 
       <div className="container">
-        {/* Filters and Sort Section */}
+
         <div className="room-controls">
           <div className="results-header">
-            <h1 className="page-title">Select Your Room</h1>
-            <p className="results-count">
-              {isLoadingResults ? 'Loading...' : `${filteredRooms.length} rooms available`}
-            </p>
+            {isBrowsingMode && (
+              <p className="browse-notice">
+                Browse our collection of rooms. To check availability and book, please select your dates.
+              </p>
+            )}
+            
+            <div className="title-count-row">
+              <h1 className="page-title">
+                {isBrowsingMode ? 'Browse All Rooms' : 'Select Your Room'}
+              </h1>
+              <p className="results-count">
+                {isLoadingResults ? 'Loading...' : pagination ? `${pagination.totalCount} rooms ${isBrowsingMode ? 'available' : 'found'}` : `${filteredRooms.length} rooms ${isBrowsingMode ? 'available' : 'found'}`}
+              </p>
+            </div>
           </div>
+          {!isBrowsingMode && (
+            <div className="date-info-row">
+              <div className="selected-dates">
+                <span>{formatDisplayDate(searchCriteria.checkInDate)}</span>
+                <span className="date-arrow"> → </span>
+                <span>{formatDisplayDate(searchCriteria.checkOutDate)}</span>
+              </div>
+              <div className="guests-nights">
+                {(() => {
+                  const nights = calculateNights()
+                  return (
+                    <>
+                      <span>{nights} {nights === 1 ? 'Night' : 'Nights'}</span>
+                      <span className="separator"> • </span>
+                      <span>{searchCriteria.guestCount || 1} {(searchCriteria.guestCount || 1) === 1 ? 'Guest' : 'Guests'}</span>
+                    </>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
 
           <div className="controls-row">
+            <div></div>
             <div className="sort-section">
               <label htmlFor="sort-select" className="sort-label">Sort by:</label>
               <div className="sort-dropdown">
@@ -211,37 +260,10 @@ const SearchResultsPage = () => {
                 </select>
               </div>
             </div>
-
-            <button 
-              className="filter-toggle btn btn-secondary"
-              onClick={toggleFilters}
-            >
-              Filters {showFilters ? '−' : '+'}
-            </button>
-          </div>
-
-          {/* Collapsible Filters */}
-          <div className={`filters-section ${showFilters ? 'show' : ''}`}>
-            <div className="filter-group">
-              <label>Room Type:</label>
-              <select 
-                value={filters.roomType} 
-                onChange={(e) => setFilters(prev => ({...prev, roomType: e.target.value}))}
-                className="filter-select"
-              >
-                <option value="">All Types</option>
-                <option value="standard">Standard</option>
-                <option value="suite">Suite</option>
-                <option value="executive">Executive</option>
-              </select>
-            </div>
           </div>
         </div>
-
-        {/* Room Listings */}
         <div className="room-listings">
           {isLoadingResults ? (
-            // Loading skeletons
             <div className="rooms-list">
               {[...Array(3)].map((_, index) => (
                 <RoomCard key={index} isLoading={true} />
@@ -280,9 +302,18 @@ const SearchResultsPage = () => {
                   key={room.id} 
                   room={room} 
                   onBookRoom={handleBookRoom}
+                  buttonText={isBrowsingMode ? 'Select Dates' : 'Book Now'}
                 />
               ))}
             </div>
+          )}
+          {!isLoadingResults && !searchError && pagination && (
+            <PaginationControls
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              isLoading={isChangingPage}
+              showResultsInfo={true}
+            />
           )}
         </div>
       </div>

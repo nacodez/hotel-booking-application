@@ -1,6 +1,4 @@
 import React from 'react'
-
-// Primary loading spinner component
 const LoadingSpinner = ({ 
   size = 'medium', 
   color = 'primary',
@@ -51,8 +49,6 @@ const LoadingSpinner = ({
 
   return spinner
 }
-
-// Page loading component with hotel-themed animation
 export const PageLoader = ({ message = 'Loading...' }) => (
   <div className="page-loader">
     <div className="page-loader-content">
@@ -79,15 +75,11 @@ export const PageLoader = ({ message = 'Loading...' }) => (
     </div>
   </div>
 )
-
-// Button loading state
 export const ButtonLoader = ({ size = 'small' }) => (
   <div className={`button-loader button-loader-${size}`}>
     <div className="button-spinner"></div>
   </div>
 )
-
-// Card loading skeleton
 export const CardSkeleton = ({ lines = 3, showImage = true }) => (
   <div className="card-skeleton">
     {showImage && <div className="skeleton-image"></div>}
@@ -101,8 +93,6 @@ export const CardSkeleton = ({ lines = 3, showImage = true }) => (
     </div>
   </div>
 )
-
-// Room card loading skeleton
 export const RoomCardSkeleton = () => (
   <div className="room-card-skeleton">
     <div className="skeleton-room-image"></div>
@@ -126,8 +116,6 @@ export const RoomCardSkeleton = () => (
     </div>
   </div>
 )
-
-// Search results loading
 export const SearchResultsSkeleton = ({ count = 6 }) => (
   <div className="search-results-skeleton">
     <div className="skeleton-search-header">
@@ -146,8 +134,6 @@ export const SearchResultsSkeleton = ({ count = 6 }) => (
     </div>
   </div>
 )
-
-// Booking form loading
 export const BookingFormSkeleton = () => (
   <div className="booking-form-skeleton">
     <div className="skeleton-form-section">
@@ -173,8 +159,6 @@ export const BookingFormSkeleton = () => (
     </div>
   </div>
 )
-
-// Dashboard loading
 export const DashboardSkeleton = () => (
   <div className="dashboard-skeleton">
     <div className="skeleton-dashboard-header">
@@ -204,8 +188,6 @@ export const DashboardSkeleton = () => (
     </div>
   </div>
 )
-
-// Inline loading text
 export const InlineLoader = ({ text = 'Loading', color = 'primary' }) => (
   <span className={`inline-loader inline-loader-${color}`}>
     {text}
@@ -217,7 +199,6 @@ export const InlineLoader = ({ text = 'Loading', color = 'primary' }) => (
   </span>
 )
 
-// Progress bar loader
 export const ProgressLoader = ({ progress = 0, text, showPercentage = true }) => (
   <div className="progress-loader">
     {text && <div className="progress-text">{text}</div>}
@@ -233,7 +214,6 @@ export const ProgressLoader = ({ progress = 0, text, showPercentage = true }) =>
   </div>
 )
 
-// Lazy loading wrapper
 export const LazyLoader = ({ children, placeholder, isLoading = false }) => {
   if (isLoading) {
     return placeholder || <LoadingSpinner />

@@ -150,21 +150,18 @@ router.post('/application',
   submitHotelApplication
 )
 
-// Get my hotel applications
 router.get('/my-applications', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
   getMyHotelApplications
 )
 
-// Get my approved hotels
 router.get('/my-hotels', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
   getMyHotels
 )
 
-// Update my hotel
 router.put('/my-hotels/:hotelId', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
@@ -172,7 +169,6 @@ router.put('/my-hotels/:hotelId',
   updateMyHotel
 )
 
-// Get rooms for my hotel
 router.get('/my-hotels/:hotelId/rooms', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
@@ -183,7 +179,6 @@ router.get('/my-hotels/:hotelId/rooms',
 // ADMIN ROUTES
 // ==========================================
 
-// Get all hotel applications for review
 router.get('/admin/applications', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -196,7 +191,6 @@ router.get('/admin/applications',
   getAllHotelApplications
 )
 
-// Approve hotel application
 router.post('/admin/applications/:applicationId/approve', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -204,7 +198,6 @@ router.post('/admin/applications/:applicationId/approve',
   approveHotelApplication
 )
 
-// Reject hotel application
 router.post('/admin/applications/:applicationId/reject', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -212,7 +205,6 @@ router.post('/admin/applications/:applicationId/reject',
   rejectHotelApplication
 )
 
-// Get all hotels
 router.get('/admin/hotels', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -226,7 +218,6 @@ router.get('/admin/hotels',
   getAllHotels
 )
 
-// Suspend/Activate hotel
 router.put('/admin/hotels/:hotelId/status', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -238,7 +229,6 @@ router.put('/admin/hotels/:hotelId/status',
 // PUBLIC ROUTES (for regular users browsing)
 // ==========================================
 
-// Get active hotels (public)
 router.get('/public', 
   [
     query('page').optional().isInt({ min: 1 }),

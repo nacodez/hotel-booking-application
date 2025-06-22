@@ -10,7 +10,6 @@ export const handleValidationErrors = (req, res, next) => {
   next()
 }
 
-// Auth validation rules
 export const validateRegister = [
   body('firstName')
     .trim()
@@ -61,7 +60,6 @@ export const validateLogin = [
   handleValidationErrors
 ]
 
-// Room validation rules
 export const validateAvailableRoomsQuery = [
   query('checkInDate')
     .isISO8601()
@@ -121,7 +119,6 @@ export const validateRoomId = [
   handleValidationErrors
 ]
 
-// Booking validation rules
 export const validateCreateBooking = [
   body('roomId')
     .notEmpty()
@@ -214,7 +211,6 @@ export const validateCancelBooking = [
   handleValidationErrors
 ]
 
-// Generic validation helpers
 export const validatePagination = [
   query('page')
     .optional()
@@ -243,12 +239,10 @@ export const validateSorting = [
   handleValidationErrors
 ]
 
-// Sanitization middleware
 export const sanitizeInput = (req, res, next) => {
   const sanitizeString = (str) => {
     if (typeof str !== 'string') return str
     
-    // Remove potential XSS attacks
     return str
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
@@ -281,7 +275,6 @@ export const sanitizeInput = (req, res, next) => {
   next()
 }
 
-// Custom validators
 export const isValidDateRange = (checkInDate, checkOutDate) => {
   const checkIn = new Date(checkInDate)
   const checkOut = new Date(checkOutDate)

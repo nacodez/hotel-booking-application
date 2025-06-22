@@ -1,15 +1,26 @@
-export const formatCurrency = (amount, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (amount, currency = 'SGD') => {
+  return new Intl.NumberFormat('en-SG', {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(amount)
+  }).format(amount).replace('SGD', 'S$')
 }
 
 export const formatPhoneNumber = (phoneNumber) => {
   const cleaned = phoneNumber.replace(/\D/g, '')
   
+  // Singapore format: +65 6123 4567 (8 digits after country code)
+  if (cleaned.length === 8) {
+    return `+65 ${cleaned.slice(0, 4)} ${cleaned.slice(4)}`
+  }
+  
+  // With country code already included
+  if (cleaned.length === 10 && cleaned.startsWith('65')) {
+    return `+65 ${cleaned.slice(2, 6)} ${cleaned.slice(6)}`
+  }
+  
+  // US format fallback for existing numbers
   if (cleaned.length === 10) {
     return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
   }

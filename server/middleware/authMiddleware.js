@@ -4,34 +4,22 @@ import { AuthenticationError, AuthorizationError } from './errorHandler.js'
 
 export const verifyJWTToken = async (req, res, next) => {
   try {
-    console.log('🔐 Auth middleware called')
     const authHeader = req.headers.authorization
-    console.log('🔐 Auth header:', authHeader ? 'Present' : 'Missing')
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ No valid auth header')
       throw new AuthenticationError('No authorization token provided')
     }
 
     const token = authHeader.split('Bearer ')[1]
-    console.log('🔐 Token extracted:', token ? 'Yes' : 'No')
     
     try {
-      // Verify JWT token
-      console.log('🔐 Verifying JWT token...')
       const decoded = jwt.verify(token, process.env.JWT_SECRET)
-      console.log('🔐 JWT decoded:', JSON.stringify(decoded, null, 2))
       
-      // Get user data from Firestore
-      console.log('🔐 Getting user data for userId:', decoded.userId)
       const userData = await getDocument(COLLECTIONS.USERS, decoded.userId)
       if (!userData) {
-        console.log('❌ User not found in Firestore')
         throw new AuthenticationError('User not found')
       }
-      console.log('✅ User found in Firestore')
 
-      // Check if user account is active
       if (userData.status === 'deactivated') {
         throw new AuthorizationError('Account deactivated')
       }
@@ -40,7 +28,6 @@ export const verifyJWTToken = async (req, res, next) => {
         ...decoded,
         userData
       }
-      console.log('✅ req.user set:', JSON.stringify(req.user, null, 2))
       
       next()
     } catch (jwtError) {
@@ -70,7 +57,6 @@ export const verifyFirebaseToken = async (req, res, next) => {
     
     const decodedToken = await authAdmin.verifyIdToken(idToken, true)
     
-    // Get additional user data from Firestore
     const userData = await getDocument(COLLECTIONS.USERS, decodedToken.uid)
     
     req.user = {
@@ -102,7 +88,6 @@ export const optionalAuth = async (req, res, next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split('Bearer ')[1]
       
-      // Try JWT first, then Firebase
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
         const userData = await getDocument(COLLECTIONS.USERS, decoded.userId)
@@ -114,7 +99,6 @@ export const optionalAuth = async (req, res, next) => {
           }
         }
       } catch (jwtError) {
-        // Try Firebase token
         try {
           const authAdmin = getAuthAdmin()
           const decodedToken = await authAdmin.verifyIdToken(token)
@@ -128,14 +112,12 @@ export const optionalAuth = async (req, res, next) => {
             userData
           }
         } catch (firebaseError) {
-          // Ignore errors for optional auth
         }
       }
     }
     
     next()
   } catch (error) {
-    // Ignore errors for optional auth
     next()
   }
 }
@@ -176,7 +158,6 @@ export const requireEmailVerified = (req, res, next) => {
   next()
 }
 
-// Rate limiting per user
 export const rateLimitPerUser = (maxRequests, windowMs) => {
   const userRequests = new Map()
 
@@ -195,7 +176,6 @@ export const rateLimitPerUser = (maxRequests, windowMs) => {
 
     const requests = userRequests.get(userId)
     
-    // Remove old requests outside the window
     const validRequests = requests.filter(timestamp => timestamp > windowStart)
     
     if (validRequests.length >= maxRequests) {

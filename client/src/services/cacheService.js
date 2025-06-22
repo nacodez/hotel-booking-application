@@ -268,7 +268,6 @@ class LocalCacheService {
             }
           }
         } catch (error) {
-          // Remove corrupted items
           localStorage.removeItem(key)
           cleaned++
         }
@@ -285,36 +284,30 @@ const localCache = new LocalCacheService()
 
 // Utility functions for cache management
 export const cacheManager = {
-  // Get from memory cache
   getMemory: (key) => memoryCache.get(key),
   setMemory: (key, data, ttl) => memoryCache.set(key, data, ttl),
   deleteMemory: (key) => memoryCache.delete(key),
 
-  // Get from session cache
   getSession: (key) => sessionCache.get(key),
   setSession: (key, data, ttl) => sessionCache.set(key, data, ttl),
   deleteSession: (key) => sessionCache.delete(key),
 
-  // Get from local cache
   getLocal: (key) => localCache.get(key),
   setLocal: (key, data, ttl) => localCache.set(key, data, ttl),
   deleteLocal: (key) => localCache.delete(key),
 
-  // Clear all caches
   clearAll: () => {
     memoryCache.clear()
     sessionCache.clear()
     localCache.clear()
   },
 
-  // Clean expired entries
   cleanup: () => {
     const memoryCleaned = memoryCache.cleanup()
     const localCleaned = localCache.cleanup()
     return { memoryCleaned, localCleaned }
   },
 
-  // Get cache statistics
   getStats: () => ({
     memory: memoryCache.getStats(),
     sessionEnabled: sessionCache.enabled,
@@ -322,7 +315,6 @@ export const cacheManager = {
   })
 }
 
-// Higher-order function for caching API calls
 export function withCache(fn, cacheType = 'memory', ttl) {
   return async function cachedFunction(...args) {
     const key = JSON.stringify(args)
@@ -348,7 +340,6 @@ export function withCache(fn, cacheType = 'memory', ttl) {
     try {
       const result = await fn(...args)
       
-      // Cache successful results only
       if (result && !result.error) {
         switch (cacheType) {
           case 'session':
@@ -364,15 +355,12 @@ export function withCache(fn, cacheType = 'memory', ttl) {
 
       return result
     } catch (error) {
-      // Don't cache errors
       throw error
     }
   }
 }
 
-// Auto-cleanup on page load
 if (typeof window !== 'undefined') {
-  // Cleanup expired cache entries on page load
   setTimeout(() => {
     cacheManager.cleanup()
   }, 1000)

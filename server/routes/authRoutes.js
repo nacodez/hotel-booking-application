@@ -179,30 +179,24 @@ router.post('/refresh-token', refreshToken)
 // User logout
 router.post('/logout', verifyJWTToken, logout)
 
-// Get user profile
 router.get('/profile', verifyJWTToken, getUserProfile)
 
-// Update user profile
 router.put('/profile', verifyJWTToken, validateProfileUpdate, updateUserProfile)
 
-// Change password
 router.put('/change-password', verifyJWTToken, validatePasswordChange, changePassword)
 
-// Delete user account
 router.delete('/account', verifyJWTToken, deleteUserAccount)
 
 // ==========================================
 // ADMIN ONLY ROUTES
 // ==========================================
 
-// Get pending users for approval
 router.get('/admin/pending-users', 
   verifyJWTToken, 
   requireRole(['admin']), 
   getPendingUsers
 )
 
-// Get all users with filtering
 router.get('/admin/users', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -216,7 +210,6 @@ router.get('/admin/users',
   getAllUsers
 )
 
-// Approve user registration
 router.post('/admin/users/:userId/approve', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -224,7 +217,6 @@ router.post('/admin/users/:userId/approve',
   approveUser
 )
 
-// Reject user registration
 router.post('/admin/users/:userId/reject', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -232,7 +224,6 @@ router.post('/admin/users/:userId/reject',
   rejectUser
 )
 
-// Update user roles
 router.put('/admin/users/:userId/roles', 
   verifyJWTToken, 
   requireRole(['admin']), 
@@ -240,7 +231,6 @@ router.put('/admin/users/:userId/roles',
   updateUserRole
 )
 
-// Suspend/Unsuspend user
 router.put('/admin/users/:userId/suspension', 
   verifyJWTToken, 
   requireRole(['admin']), 

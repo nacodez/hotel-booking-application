@@ -22,12 +22,10 @@ const firestore = getFirestoreAdmin()
 // HOTEL OWNER FUNCTIONS
 // ==========================================
 
-// Submit hotel application
 export const submitHotelApplication = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
   const userData = req.user.userData
 
-  // Verify user is approved hotel owner
   if (!userData?.roles?.includes('hotel-owner')) {
     throw new AuthorizationError('Only hotel owners can submit hotel applications')
   }
@@ -54,7 +52,6 @@ export const submitHotelApplication = asyncHandler(async (req, res) => {
     bankingInfo
   } = req.body
 
-  // Check if hotel with same name and city already exists
   const existingHotels = await queryDocuments(COLLECTIONS.HOTEL_APPLICATIONS, [
     { field: 'hotelName', operator: '==', value: hotelName.trim() },
     { field: 'city', operator: '==', value: city.toLowerCase().trim() }
@@ -121,7 +118,6 @@ export const submitHotelApplication = asyncHandler(async (req, res) => {
   })
 })
 
-// Get hotel owner's applications
 export const getMyHotelApplications = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
 
@@ -138,7 +134,6 @@ export const getMyHotelApplications = asyncHandler(async (req, res) => {
   })
 })
 
-// Get hotel owner's approved hotels
 export const getMyHotels = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
 
@@ -155,7 +150,6 @@ export const getMyHotels = asyncHandler(async (req, res) => {
   })
 })
 
-// Update hotel information
 export const updateMyHotel = asyncHandler(async (req, res) => {
   const { hotelId } = req.params
   const userId = req.user.userId || req.user.uid
@@ -170,7 +164,6 @@ export const updateMyHotel = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You can only update your own hotels')
   }
 
-  // Fields that can be updated by hotel owner
   const allowedFields = [
     'description', 'contactInfo', 'amenities', 'policies', 
     'images', 'starRating', 'bankingInfo'
@@ -195,12 +188,10 @@ export const updateMyHotel = asyncHandler(async (req, res) => {
   })
 })
 
-// Get hotel rooms (for hotel owner)
 export const getMyHotelRooms = asyncHandler(async (req, res) => {
   const { hotelId } = req.params
   const userId = req.user.userId || req.user.uid
 
-  // Verify hotel ownership
   const hotel = await getDocument(COLLECTIONS.HOTELS, hotelId)
   if (!hotel || hotel.ownerId !== userId) {
     throw new AuthorizationError('You can only view rooms for your own hotels')
@@ -223,7 +214,6 @@ export const getMyHotelRooms = asyncHandler(async (req, res) => {
 // ADMIN FUNCTIONS
 // ==========================================
 
-// Get all hotel applications for review
 export const getAllHotelApplications = asyncHandler(async (req, res) => {
   const { 
     status = 'pending-review', 
@@ -241,7 +231,6 @@ export const getAllHotelApplications = asyncHandler(async (req, res) => {
   const allApplications = await queryDocuments(COLLECTIONS.HOTEL_APPLICATIONS, filters, 
     { field: 'submittedAt', direction: 'desc' })
 
-  // Apply search filter if provided
   let filteredApplications = allApplications
   if (search) {
     const searchLower = search.toLowerCase()
@@ -253,7 +242,6 @@ export const getAllHotelApplications = asyncHandler(async (req, res) => {
     )
   }
 
-  // Apply pagination
   const startIndex = (page - 1) * limit
   const endIndex = startIndex + parseInt(limit)
   const paginatedApplications = filteredApplications.slice(startIndex, endIndex)
@@ -272,7 +260,6 @@ export const getAllHotelApplications = asyncHandler(async (req, res) => {
   })
 })
 
-// Approve hotel application
 export const approveHotelApplication = asyncHandler(async (req, res) => {
   const { applicationId } = req.params
   const { comments } = req.body
@@ -287,7 +274,6 @@ export const approveHotelApplication = asyncHandler(async (req, res) => {
     throw new ValidationError('Application is not pending review')
   }
 
-  // Create approved hotel
   const hotelData = {
     ownerId: application.ownerId,
     ownerEmail: application.ownerEmail,
@@ -313,7 +299,6 @@ export const approveHotelApplication = asyncHandler(async (req, res) => {
 
   const hotelId = await createDocument(COLLECTIONS.HOTELS, hotelData)
 
-  // Update application status
   await updateDocument(COLLECTIONS.HOTEL_APPLICATIONS, applicationId, {
     status: 'approved',
     reviewedAt: new Date(),
@@ -333,7 +318,6 @@ export const approveHotelApplication = asyncHandler(async (req, res) => {
   })
 })
 
-// Reject hotel application
 export const rejectHotelApplication = asyncHandler(async (req, res) => {
   const { applicationId } = req.params
   const { reason, comments } = req.body
@@ -352,7 +336,6 @@ export const rejectHotelApplication = asyncHandler(async (req, res) => {
     throw new ValidationError('Application is not pending review')
   }
 
-  // Update application status
   await updateDocument(COLLECTIONS.HOTEL_APPLICATIONS, applicationId, {
     status: 'rejected',
     reviewedAt: new Date(),
@@ -372,7 +355,6 @@ export const rejectHotelApplication = asyncHandler(async (req, res) => {
   })
 })
 
-// Get all hotels
 export const getAllHotels = asyncHandler(async (req, res) => {
   const { 
     status = 'active', 
@@ -395,7 +377,6 @@ export const getAllHotels = asyncHandler(async (req, res) => {
   const allHotels = await queryDocuments(COLLECTIONS.HOTELS, filters, 
     { field: 'createdAt', direction: 'desc' })
 
-  // Apply search filter if provided
   let filteredHotels = allHotels
   if (search) {
     const searchLower = search.toLowerCase()
@@ -407,7 +388,6 @@ export const getAllHotels = asyncHandler(async (req, res) => {
     )
   }
 
-  // Apply pagination
   const startIndex = (page - 1) * limit
   const endIndex = startIndex + parseInt(limit)
   const paginatedHotels = filteredHotels.slice(startIndex, endIndex)
@@ -426,7 +406,6 @@ export const getAllHotels = asyncHandler(async (req, res) => {
   })
 })
 
-// Suspend/Activate hotel
 export const toggleHotelStatus = asyncHandler(async (req, res) => {
   const { hotelId } = req.params
   const { activate = true, reason } = req.body

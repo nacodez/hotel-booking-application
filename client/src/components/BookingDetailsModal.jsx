@@ -46,15 +46,12 @@ const BookingDetailsModal = ({ booking, onClose }) => {
 
   const handlePrint = () => {
     setIsPrinting(true)
-    
-    // Create a new window for printing
     const printWindow = window.open('', '_blank')
     const printContent = generatePrintContent()
     
     printWindow.document.write(printContent)
     printWindow.document.close()
     
-    // Wait for content to load, then print
     printWindow.onload = () => {
       printWindow.print()
       printWindow.onafterprint = () => {
@@ -246,17 +243,16 @@ const BookingDetailsModal = ({ booking, onClose }) => {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="booking-details-modal">
         <div className="modal-header">
-          <h2 className="modal-title">Booking Details</h2>
+          <h2 className="modal-title">
+             Booking Details
+          </h2>
           <button className="modal-close" onClick={onClose}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            ×
           </button>
         </div>
 
-        <div className="modal-content">
-          {/* Booking Summary */}
+        <div className="modal-body">
+
           <div className="booking-summary-section">
             <div className="booking-image-container">
               <img 
@@ -276,8 +272,6 @@ const BookingDetailsModal = ({ booking, onClose }) => {
               </p>
             </div>
           </div>
-
-          {/* Booking Details */}
           <div className="details-section">
             <h4 className="section-title">Stay Details</h4>
             <div className="details-grid">
@@ -308,8 +302,6 @@ const BookingDetailsModal = ({ booking, onClose }) => {
               </div>
             </div>
           </div>
-
-          {/* Guest Information */}
           <div className="details-section">
             <h4 className="section-title">Guest Information</h4>
             <div className="guest-details">
@@ -333,8 +325,6 @@ const BookingDetailsModal = ({ booking, onClose }) => {
               )}
             </div>
           </div>
-
-          {/* Price Breakdown */}
           <div className="details-section">
             <h4 className="section-title">Price Breakdown</h4>
             <div className="price-breakdown">
@@ -355,9 +345,9 @@ const BookingDetailsModal = ({ booking, onClose }) => {
           </div>
         </div>
 
-        <div className="modal-actions">
+        <div className="modal-footer">
           <button 
-            className="btn btn-secondary"
+            className="modal-btn secondary"
             onClick={handlePrint}
             disabled={isPrinting}
           >
@@ -378,7 +368,7 @@ const BookingDetailsModal = ({ booking, onClose }) => {
             )}
           </button>
           
-          <button className="btn btn-primary" onClick={onClose}>
+          <button className="modal-btn primary" onClick={onClose}>
             Close
           </button>
         </div>

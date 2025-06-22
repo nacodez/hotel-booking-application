@@ -2,10 +2,8 @@ import emailService from '../services/emailService.js'
 import { body, validationResult } from 'express-validator'
 
 class EmailController {
-  // Send booking confirmation email
   async sendBookingConfirmation(req, res) {
     try {
-      // Check for validation errors
       const errors = validationResult(req)
       if (!errors.isEmpty()) {
         return res.status(400).json({
@@ -24,7 +22,6 @@ class EmailController {
         pricePerNight
       } = req.body
 
-      // Validate required fields
       if (!guestInformation || !guestInformation.email) {
         return res.status(400).json({
           success: false,
@@ -39,7 +36,6 @@ class EmailController {
         })
       }
 
-      // Prepare booking data for email
       const bookingData = {
         guestInformation,
         bookingDetails,
@@ -49,14 +45,7 @@ class EmailController {
         pricePerNight
       }
 
-      // Send the email
       const result = await emailService.sendBookingConfirmation(bookingData)
-
-      // Log the email sending event
-      console.log(`✅ Booking confirmation email sent to ${guestInformation.email}`)
-      console.log(`📧 Confirmation Number: ${confirmationNumber}`)
-      console.log(`🔗 Booking ID: ${bookingId}`)
-
       res.status(200).json({
         success: true,
         message: 'Booking confirmation email sent successfully',
@@ -70,7 +59,7 @@ class EmailController {
       })
 
     } catch (error) {
-      console.error('❌ Error sending booking confirmation email:', error)
+      console.error(' Error sending booking confirmation email:', error)
       
       res.status(500).json({
         success: false,
@@ -80,7 +69,6 @@ class EmailController {
     }
   }
 
-  // Test email service connection
   async testEmailConnection(req, res) {
     try {
       const result = await emailService.verifyConnection()
@@ -99,7 +87,7 @@ class EmailController {
         })
       }
     } catch (error) {
-      console.error('❌ Error testing email connection:', error)
+      console.error(' Error testing email connection:', error)
       
       res.status(500).json({
         success: false,
@@ -109,7 +97,6 @@ class EmailController {
     }
   }
 
-  // Send test email (for development/testing purposes)
   async sendTestEmail(req, res) {
     try {
       const { email } = req.body
@@ -121,7 +108,6 @@ class EmailController {
         })
       }
 
-      // Create test booking data
       const testBookingData = {
         guestInformation: {
           title: 'Mr.',
@@ -156,7 +142,7 @@ class EmailController {
       })
 
     } catch (error) {
-      console.error('❌ Error sending test email:', error)
+      console.error(' Error sending test email:', error)
       
       res.status(500).json({
         success: false,
@@ -167,7 +153,6 @@ class EmailController {
   }
 }
 
-// Validation middleware for booking confirmation email
 const validateBookingConfirmation = [
   body('guestInformation.email')
     .isEmail()
@@ -195,7 +180,6 @@ const validateBookingConfirmation = [
     .withMessage('Price per night must be a number')
 ]
 
-// Validation middleware for test email
 const validateTestEmail = [
   body('email')
     .isEmail()

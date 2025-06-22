@@ -44,14 +44,12 @@ const CancelBookingModal = ({ booking, onConfirm, onCancel }) => {
     const today = new Date()
     const hoursUntilCheckIn = (checkInDate - today) / (1000 * 60 * 60)
     
-    // Cancellation policy: Full refund if cancelled 24+ hours before check-in
     if (hoursUntilCheckIn >= 24) {
       return booking.totalAmount
     } else if (hoursUntilCheckIn >= 0) {
       // 50% refund if cancelled within 24 hours
       return booking.totalAmount * 0.5
     } else {
-      // No refund for cancellation after check-in date
       return 0
     }
   }
@@ -63,21 +61,20 @@ const CancelBookingModal = ({ booking, onConfirm, onCancel }) => {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="cancel-booking-modal">
         <div className="modal-header">
-          <h2 className="modal-title">Cancel Booking</h2>
+          <h2 className="modal-title">
+             Cancel Booking
+          </h2>
           <button 
             className="modal-close" 
             onClick={onCancel}
             disabled={isProcessing}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            ×
           </button>
         </div>
 
-        <div className="modal-content">
-          {/* Warning Icon */}
+        <div className="modal-body">
+
           <div className="warning-section">
             <div className="warning-icon">
               <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -91,8 +88,6 @@ const CancelBookingModal = ({ booking, onConfirm, onCancel }) => {
               This action cannot be undone. Please review the cancellation details below.
             </p>
           </div>
-
-          {/* Booking Summary */}
           <div className="booking-summary">
             <div className="booking-header">
               <h4 className="booking-title">{booking.roomName}</h4>
@@ -110,8 +105,6 @@ const CancelBookingModal = ({ booking, onConfirm, onCancel }) => {
               </div>
             </div>
           </div>
-
-          {/* Refund Information */}
           <div className="refund-section">
             <h4 className="section-title">Refund Information</h4>
             <div className="refund-details">
@@ -173,8 +166,6 @@ const CancelBookingModal = ({ booking, onConfirm, onCancel }) => {
               </div>
             </div>
           </div>
-
-          {/* Cancellation Reason */}
           <div className="reason-section">
             <label htmlFor="cancellation-reason" className="reason-label">
               Reason for cancellation (optional)
@@ -191,9 +182,9 @@ const CancelBookingModal = ({ booking, onConfirm, onCancel }) => {
           </div>
         </div>
 
-        <div className="modal-actions">
+        <div className="modal-footer">
           <button 
-            className="btn btn-secondary"
+            className="modal-btn secondary"
             onClick={onCancel}
             disabled={isProcessing}
           >
@@ -201,9 +192,17 @@ const CancelBookingModal = ({ booking, onConfirm, onCancel }) => {
           </button>
           
           <button 
-            className="btn btn-danger"
+            className="modal-btn primary"
             onClick={handleConfirm}
             disabled={isProcessing}
+            style={{
+              background: isProcessing 
+                ? 'var(--color-text-muted)' 
+                : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              boxShadow: isProcessing 
+                ? 'none' 
+                : '0 4px 14px 0 rgba(239, 68, 68, 0.39)'
+            }}
           >
             {isProcessing ? (
               <>

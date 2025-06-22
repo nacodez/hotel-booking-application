@@ -15,13 +15,100 @@ import {
   NotFoundError,
   ValidationError 
 } from '../middleware/errorHandler.js'
+import cacheService from '../services/cacheService.js'
 
 const firestore = getFirestoreAdmin()
 
-export const searchAvailableRooms = asyncHandler(async (req, res) => {
-  const { destinationCity, checkInDate, checkOutDate, guestCount, roomCount } = req.body
+const datesOverlap = (start1, end1, start2, end2) => {
+  const s1 = new Date(start1)
+  const e1 = new Date(end1)
+  const s2 = new Date(start2)
+  const e2 = new Date(end2)
+  
+  return s1 < e2 && e1 > s2
+}
 
-  console.log('🔍 Room search request:', { destinationCity, checkInDate, checkOutDate, guestCount, roomCount })
+const isRoomAvailableForDates = (room, checkInDate, checkOutDate) => {
+  const bookedDates = room.bookedDates || []
+  
+  for (const booking of bookedDates) {
+
+    if (datesOverlap(checkInDate, checkOutDate, booking.checkIn, booking.checkOut)) {
+
+      return false
+    } else {
+
+    }
+  }
+  return true
+}
+
+const checkBatchRoomAvailability = async (roomIds, checkInDate, checkOutDate) => {
+  try {
+
+    
+    if (roomIds.length === 0) return {}
+    
+    const cachedResults = cacheService.getCachedAvailability(roomIds, checkInDate, checkOutDate)
+    if (cachedResults) {
+
+      return cachedResults
+    }
+    
+    const bookingsRef = firestore.collection('bookings')
+    const bookingsQuery = bookingsRef
+      .where('roomId', 'in', roomIds)
+      .where('status', 'in', ['confirmed', 'checked-in']) // Only active bookings
+    
+    const bookingsSnapshot = await bookingsQuery.get()
+    
+    const roomBookings = {}
+    bookingsSnapshot.forEach(doc => {
+      const booking = doc.data()
+      if (!roomBookings[booking.roomId]) {
+        roomBookings[booking.roomId] = []
+      }
+      roomBookings[booking.roomId].push(booking)
+    })
+    
+    const availabilityResults = {}
+    roomIds.forEach(roomId => {
+      const bookings = roomBookings[roomId] || []
+      let hasConflict = false
+      
+      for (const booking of bookings) {
+        if (datesOverlap(checkInDate, checkOutDate, booking.checkInDate, booking.checkOutDate)) {
+
+          hasConflict = true
+          break
+        }
+      }
+      
+      availabilityResults[roomId] = !hasConflict
+      if (!hasConflict) {
+
+      }
+    })
+    
+    cacheService.cacheAvailability(roomIds, checkInDate, checkOutDate, availabilityResults)
+    
+    return availabilityResults
+  } catch (error) {
+    console.error('Error in batch availability check:', error)
+    const errorResults = {}
+    roomIds.forEach(roomId => {
+      errorResults[roomId] = false
+    })
+    return errorResults
+  }
+}
+
+export const searchAvailableRooms = asyncHandler(async (req, res) => {
+  const { destinationCity, checkInDate, checkOutDate, guestCount, roomCount, page = 1, limit = 10 } = req.body
+  
+  const pageNum = parseInt(page)
+  const limitNum = parseInt(limit)
+  const offset = (pageNum - 1) * limitNum
 
   if (!destinationCity || !checkInDate || !checkOutDate) {
     return res.status(400).json({
@@ -30,37 +117,181 @@ export const searchAvailableRooms = asyncHandler(async (req, res) => {
     })
   }
 
-  try {
-    console.log('📊 Querying rooms collection...')
-    const roomsRef = firestore.collection('rooms')
-    
-    // Simplified query - just get all available rooms for now
-    let roomQuery = roomsRef.where('available', '==', true)
-    
-    console.log('🔥 Executing Firestore query...')
-    const roomSnapshot = await roomQuery.get()
-    console.log(`📋 Found ${roomSnapshot.size} rooms`)
+  const checkIn = new Date(checkInDate)
+  const checkOut = new Date(checkOutDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-    const availableRooms = []
+  if (checkIn < today) {
+    return res.status(400).json({
+      success: false,
+      message: 'Check-in date cannot be in the past'
+    })
+  }
+
+  if (checkOut <= checkIn) {
+    return res.status(400).json({
+      success: false,
+      message: 'Check-out date must be after check-in date'
+    })
+  }
+
+  try {
+    const hasSearchCriteria = destinationCity && checkInDate && checkOutDate
+    if (hasSearchCriteria) {
+      const cachedSearch = cacheService.getCachedSearchResults(
+        { destinationCity, checkInDate, checkOutDate, guestCount, roomCount },
+        pageNum,
+        limitNum
+      )
+      if (cachedSearch) {
+
+        return res.json({
+          success: true,
+          data: cachedSearch.data,
+          pagination: cachedSearch.pagination,
+          searchCriteria: {
+            destinationCity,
+            checkInDate,
+            checkOutDate,
+            guestCount,
+            roomCount
+          }
+        })
+      }
+    }
+
     
-    roomSnapshot.forEach(doc => {
+    const roomsRef = firestore.collection('rooms')
+    const allRoomsSnapshot = await roomsRef.get()
+
+    
+    const roomStatusAnalysis = {}
+    const availabilityAnalysis = {}
+    const roomsWithIssues = []
+    
+    allRoomsSnapshot.forEach(doc => {
       const roomData = doc.data()
-      console.log(`🏠 Room data:`, { id: doc.id, name: roomData.name, capacity: roomData.capacity })
+      const roomId = doc.id
       
-      // Filter by capacity if needed
-      if (!guestCount || roomData.capacity >= guestCount) {
-        availableRooms.push({
-          id: doc.id,
-          ...roomData
+      const status = roomData.roomStatus || 'undefined'
+      roomStatusAnalysis[status] = (roomStatusAnalysis[status] || 0) + 1
+      
+      const available = roomData.available === true ? 'true' : (roomData.available === false ? 'false' : 'undefined')
+      availabilityAnalysis[available] = (availabilityAnalysis[available] || 0) + 1
+      
+      if (roomData.available !== true || roomData.roomStatus !== 'available') {
+        roomsWithIssues.push({
+          id: roomId,
+          name: roomData.name || 'Unknown',
+          roomNumber: roomData.roomNumber || 'Unknown',
+          available: roomData.available,
+          roomStatus: roomData.roomStatus,
+          reason: roomData.available !== true ? 'available flag is false/missing' : 'roomStatus is not available'
         })
       }
     })
 
-    console.log(`✅ Returning ${availableRooms.length} available rooms`)
+    
+    let baseQuery = roomsRef
+      .where('available', '==', true)
+      .where('roomStatus', '==', 'available')
+    const roomSnapshot = await baseQuery.get()
+    const availableRooms = []
+    const filteredOutRooms = {
+      capacity: [],
+      dateConflict: [],
+      other: []
+    }
+    
+    roomSnapshot.forEach(doc => {
+      const roomData = doc.data()
+      const roomId = doc.id
+      
+      if (guestCount && roomData.capacity < parseInt(guestCount)) {
 
-    res.json({
+        filteredOutRooms.capacity.push({
+          id: roomId,
+          name: roomData.name,
+          roomNumber: roomData.roomNumber,
+          capacity: roomData.capacity,
+          required: parseInt(guestCount)
+        })
+        return
+      }
+      
+      if (checkInDate && checkOutDate) {
+        if (!isRoomAvailableForDates(roomData, checkInDate, checkOutDate)) {
+          filteredOutRooms.dateConflict.push({
+            id: roomId,
+            name: roomData.name,
+            roomNumber: roomData.roomNumber,
+            bookedDates: roomData.bookedDates || [],
+            searchDates: { checkInDate, checkOutDate }
+          })
+          return
+        }
+      }
+      
+      const nights = checkInDate && checkOutDate ? Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)) : 1
+      const totalPrice = roomData.price * nights
+      
+      availableRooms.push({
+        id: roomId,
+        title: roomData.name,
+        subtitle: `${roomData.type.charAt(0).toUpperCase() + roomData.type.slice(1)} Room`,
+        description: roomData.description,
+        image: roomData.images?.[0] || '/placeholder-room.jpg',
+        price: totalPrice,
+        pricePerNight: roomData.price,
+        nights: nights,
+        amenities: roomData.amenities || [],
+        roomType: roomData.type,
+        capacity: roomData.capacity,
+        maxOccupancy: roomData.maxOccupancy || roomData.capacity,
+        bedType: roomData.bedType,
+        roomNumber: roomData.roomNumber,
+        hotelId: roomData.hotelId
+      })
+    })
+    
+    if (filteredOutRooms.capacity.length > 0) {
+
+    }
+    
+    if (filteredOutRooms.dateConflict.length > 0) {
+
+    }
+    
+    const expectedTotal = 30
+    const actualTotal = availableRooms.length
+    const missingCount = expectedTotal - actualTotal
+    
+    if (missingCount > 0) {
+    }
+
+    const totalCount = availableRooms.length
+    const totalPages = Math.ceil(totalCount / limitNum)
+    const startIndex = offset
+    const endIndex = startIndex + limitNum
+    const paginatedRooms = availableRooms.slice(startIndex, endIndex)
+
+    const hasNextPage = pageNum < totalPages
+    const hasPrevPage = pageNum > 1
+
+    const paginationData = {
+      currentPage: pageNum,
+      totalPages,
+      totalCount,
+      limit: limitNum,
+      hasNextPage,
+      hasPrevPage
+    }
+
+    const responseData = {
       success: true,
-      data: availableRooms,
+      data: paginatedRooms,
+      pagination: paginationData,
       searchCriteria: {
         destinationCity,
         checkInDate,
@@ -68,11 +299,23 @@ export const searchAvailableRooms = asyncHandler(async (req, res) => {
         guestCount,
         roomCount
       }
-    })
+    }
+
+    if (hasSearchCriteria) {
+      cacheService.cacheSearchResults(
+        { destinationCity, checkInDate, checkOutDate, guestCount, roomCount },
+        pageNum,
+        limitNum,
+        paginatedRooms,
+        paginationData
+      )
+    }
+
+    res.json(responseData)
   } catch (error) {
-    console.error('❌ Error searching rooms:', error)
-    console.error('❌ Error details:', error.message)
-    console.error('❌ Error stack:', error.stack)
+    console.error(' Error searching rooms:', error)
+    console.error(' Error details:', error.message)
+    console.error(' Error stack:', error.stack)
     res.status(500).json({
       success: false,
       message: 'Failed to search available rooms',
@@ -120,22 +363,88 @@ export const getRoomDetails = asyncHandler(async (req, res) => {
 })
 
 export const getAllRooms = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10 } = req.query
+  
+  const pageNum = parseInt(page)
+  const limitNum = parseInt(limit)
+  const offset = (pageNum - 1) * limitNum
+  
   try {
+    const cachedRoomData = cacheService.getCachedRoomData(pageNum, limitNum, false)
+    if (cachedRoomData) {
+
+      return res.json({
+        success: true,
+        data: cachedRoomData.data,
+        pagination: cachedRoomData.pagination
+      })
+    }
     const roomsRef = firestore.collection('rooms')
-    const roomSnapshot = await roomsRef.where('available', '==', true).get()
+    
+    let baseQuery = roomsRef
+      .where('available', '==', true)
+      .where('roomStatus', '==', 'available')
+    
+    let totalCount = cacheService.getCachedTotalCount(false)
+    if (!totalCount) {
+
+      const totalSnapshot = await baseQuery.select().get() // Only get document IDs, not full data
+      totalCount = totalSnapshot.size
+
+      
+      cacheService.cacheTotalCount(totalCount, false)
+    } else {
+
+    }
+    
+    const roomSnapshot = await baseQuery
+      .limit(limitNum)
+      .offset(offset)
+      .get()
 
     const rooms = []
     roomSnapshot.forEach(doc => {
+      const roomData = doc.data()
+      
       rooms.push({
         id: doc.id,
-        ...doc.data()
+        title: roomData.name || roomData.title,
+        subtitle: `${roomData.type ? roomData.type.charAt(0).toUpperCase() + roomData.type.slice(1) : 'Standard'} Room`,
+        description: roomData.description,
+        image: roomData.images?.[0] || '/placeholder-room.jpg',
+        price: roomData.price,
+        amenities: roomData.amenities || [],
+        roomType: roomData.type,
+        capacity: roomData.capacity,
+        maxOccupancy: roomData.maxOccupancy || roomData.capacity,
+        bedType: roomData.bedType,
+        roomNumber: roomData.roomNumber,
+        hotelId: roomData.hotelId
       })
     })
 
-    res.json({
+    const totalPages = Math.ceil(totalCount / limitNum)
+    const hasNextPage = pageNum < totalPages
+    const hasPrevPage = pageNum > 1
+
+    const paginationData = {
+      currentPage: pageNum,
+      totalPages,
+      totalCount,
+      limit: limitNum,
+      hasNextPage,
+      hasPrevPage
+    }
+
+    const responseData = {
       success: true,
-      data: rooms
-    })
+      data: rooms,
+      pagination: paginationData
+    }
+
+    cacheService.cacheRoomData(pageNum, limitNum, rooms, paginationData, false)
+
+    res.json(responseData)
   } catch (error) {
     console.error('Error fetching all rooms:', error)
     res.status(500).json({
@@ -145,11 +454,7 @@ export const getAllRooms = asyncHandler(async (req, res) => {
   }
 })
 
-// ==========================================
-// HOTEL OWNER ROOM MANAGEMENT FUNCTIONS
-// ==========================================
 
-// Create room (hotel owner only)
 export const createRoom = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
   const {
@@ -169,7 +474,6 @@ export const createRoom = asyncHandler(async (req, res) => {
     policies
   } = req.body
 
-  // Verify hotel ownership
   const hotel = await getDocument(COLLECTIONS.HOTELS, hotelId)
   if (!hotel || hotel.ownerId !== userId) {
     throw new AuthorizationError('You can only create rooms for your own hotels')
@@ -179,7 +483,6 @@ export const createRoom = asyncHandler(async (req, res) => {
     throw new ValidationError('Hotel must be active to add rooms')
   }
 
-  // Check if room number already exists in this hotel
   const existingRooms = await queryDocuments(COLLECTIONS.ROOMS, [
     { field: 'hotelId', operator: '==', value: hotelId },
     { field: 'roomNumber', operator: '==', value: roomNumber }
@@ -232,10 +535,11 @@ export const createRoom = asyncHandler(async (req, res) => {
 
   const roomId = await createDocument(COLLECTIONS.ROOMS, roomData)
 
-  // Update hotel's total rooms count
   await updateDocument(COLLECTIONS.HOTELS, hotelId, {
     totalRooms: (hotel.totalRooms || 0) + 1
   })
+
+  cacheService.invalidateRoomCaches()
 
   res.status(201).json({
     success: true,
@@ -248,7 +552,6 @@ export const createRoom = asyncHandler(async (req, res) => {
   })
 })
 
-// Update room (hotel owner only)
 export const updateRoom = asyncHandler(async (req, res) => {
   const { roomId } = req.params
   const userId = req.user.userId || req.user.uid
@@ -263,7 +566,6 @@ export const updateRoom = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You can only update your own rooms')
   }
 
-  // Fields that can be updated by hotel owner
   const allowedFields = [
     'title', 'description', 'price', 'capacity', 'bedType', 'bathrooms',
     'size', 'amenities', 'images', 'features', 'policies', 'status'
@@ -280,17 +582,17 @@ export const updateRoom = asyncHandler(async (req, res) => {
     throw new ValidationError('No valid fields to update')
   }
 
-  // Update price-related fields if price is updated
   if (filteredUpdates.price) {
     filteredUpdates.basePrice = parseFloat(filteredUpdates.price)
   }
 
-  // Update capacity-related fields if capacity is updated
   if (filteredUpdates.capacity) {
     filteredUpdates.maxOccupancy = parseInt(filteredUpdates.capacity)
   }
 
   await updateDocument(COLLECTIONS.ROOMS, roomId, filteredUpdates)
+
+  cacheService.invalidateRoomCaches()
 
   res.json({
     success: true,
@@ -298,7 +600,6 @@ export const updateRoom = asyncHandler(async (req, res) => {
   })
 })
 
-// Delete room (hotel owner only)
 export const deleteRoom = asyncHandler(async (req, res) => {
   const { roomId } = req.params
   const userId = req.user.userId || req.user.uid
@@ -312,7 +613,6 @@ export const deleteRoom = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You can only delete your own rooms')
   }
 
-  // Check for active bookings
   const activeBookings = await queryDocuments(COLLECTIONS.BOOKINGS, [
     { field: 'roomId', operator: '==', value: roomId },
     { field: 'status', operator: 'in', value: ['confirmed', 'pending'] }
@@ -322,13 +622,11 @@ export const deleteRoom = asyncHandler(async (req, res) => {
     throw new ValidationError('Cannot delete room with active bookings')
   }
 
-  // Soft delete - mark as inactive
   await updateDocument(COLLECTIONS.ROOMS, roomId, {
     isActive: false,
     deletedAt: new Date()
   })
 
-  // Update hotel's total rooms count
   const hotel = await getDocument(COLLECTIONS.HOTELS, room.hotelId)
   if (hotel) {
     await updateDocument(COLLECTIONS.HOTELS, room.hotelId, {
@@ -336,13 +634,14 @@ export const deleteRoom = asyncHandler(async (req, res) => {
     })
   }
 
+  cacheService.invalidateRoomCaches()
+
   res.json({
     success: true,
     message: 'Room deleted successfully'
   })
 })
 
-// Get room booking history (hotel owner only)
 export const getRoomBookings = asyncHandler(async (req, res) => {
   const { roomId } = req.params
   const userId = req.user.userId || req.user.uid
@@ -368,7 +667,6 @@ export const getRoomBookings = asyncHandler(async (req, res) => {
   const allBookings = await queryDocuments(COLLECTIONS.BOOKINGS, filters, 
     { field: 'createdAt', direction: 'desc' })
 
-  // Apply pagination
   const startIndex = (page - 1) * limit
   const endIndex = startIndex + parseInt(limit)
   const paginatedBookings = allBookings.slice(startIndex, endIndex)
@@ -387,7 +685,6 @@ export const getRoomBookings = asyncHandler(async (req, res) => {
   })
 })
 
-// Toggle room availability
 export const toggleRoomAvailability = asyncHandler(async (req, res) => {
   const { roomId } = req.params
   const userId = req.user.userId || req.user.uid
@@ -408,6 +705,8 @@ export const toggleRoomAvailability = asyncHandler(async (req, res) => {
     status: newStatus,
     statusUpdatedAt: new Date()
   })
+
+  cacheService.invalidateRoomCaches()
 
   res.json({
     success: true,

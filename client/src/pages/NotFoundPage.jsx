@@ -8,7 +8,6 @@ const NotFoundPage = () => {
   const [countdown, setCountdown] = useState(10)
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Auto-redirect countdown
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(prev => {
@@ -23,15 +22,13 @@ const NotFoundPage = () => {
     return () => clearInterval(timer)
   }, [navigate])
 
-  // Popular suggestions based on common user paths
   const suggestions = [
-    { path: '/', label: 'Search Hotels', icon: '🏨' },
-    { path: '/login', label: 'Sign In', icon: '👤' },
-    { path: '/register', label: 'Create Account', icon: '📝' },
-    { path: '/dashboard', label: 'My Bookings', icon: '📋' }
+    { path: '/', label: 'Search Hotels', icon: '' },
+    { path: '/login', label: 'Sign In', icon: '' },
+    { path: '/register', label: 'Create Account', icon: '' },
+    { path: '/dashboard', label: 'My Bookings', icon: '' }
   ]
 
-  // Extract potential search terms from the current path
   useEffect(() => {
     const path = location.pathname
     const segments = path.split('/').filter(Boolean)
@@ -61,33 +58,27 @@ const NotFoundPage = () => {
 
       <div className="not-found-page">
         <div className="not-found-container">
-          {/* Header with logo/navigation */}
+
           <div className="not-found-header">
             <Link to="/" className="not-found-logo">
-              <span className="logo-icon">🏨</span>
+              <span className="logo-icon"></span>
               Hotel Booking
             </Link>
           </div>
-
-          {/* Main 404 content */}
           <div className="not-found-content">
             <div className="not-found-illustration">
               <div className="error-code">404</div>
               <div className="error-icon">
                 <svg viewBox="0 0 200 200" className="lost-traveler">
-                  {/* Suitcase */}
+
                   <rect x="70" y="120" width="60" height="40" rx="5" fill="#8b5cf6" stroke="#7c3aed" strokeWidth="2"/>
                   <rect x="85" y="130" width="30" height="20" fill="#a78bfa"/>
                   <circle cx="75" cy="165" r="8" fill="#374151"/>
                   <circle cx="125" cy="165" r="8" fill="#374151"/>
-                  
-                  {/* Person */}
                   <circle cx="100" cy="80" r="15" fill="#fbbf24"/>
                   <rect x="90" y="95" width="20" height="30" rx="10" fill="#3b82f6"/>
                   <rect x="85" y="110" width="10" height="20" fill="#1f2937"/>
                   <rect x="105" y="110" width="10" height="20" fill="#1f2937"/>
-                  
-                  {/* Question marks */}
                   <text x="50" y="60" fontSize="20" fill="#ef4444">?</text>
                   <text x="140" y="70" fontSize="16" fill="#ef4444">?</text>
                   <text x="160" y="100" fontSize="18" fill="#ef4444">?</text>
@@ -107,8 +98,6 @@ const NotFoundPage = () => {
                 <code className="requested-path">{location.pathname}</code>
               </div>
             </div>
-
-            {/* Search form */}
             {searchTerm && (
               <div className="not-found-search">
                 <form onSubmit={handleSearch} className="search-form">
@@ -132,8 +121,6 @@ const NotFoundPage = () => {
                 </form>
               </div>
             )}
-
-            {/* Suggestions */}
             <div className="not-found-suggestions">
               <h3>Here's what you can do:</h3>
               <div className="suggestions-grid">
@@ -150,8 +137,6 @@ const NotFoundPage = () => {
                 ))}
               </div>
             </div>
-
-            {/* Auto-redirect notice */}
             <div className="not-found-redirect">
               <div className="redirect-notice">
                 <span className="redirect-text">
@@ -177,8 +162,6 @@ const NotFoundPage = () => {
                 </button>
               </div>
             </div>
-
-            {/* Help section */}
             <div className="not-found-help">
               <details className="help-details">
                 <summary>Need help?</summary>
@@ -193,18 +176,16 @@ const NotFoundPage = () => {
                   
                   <div className="help-contact">
                     <a href="mailto:support@hotelbooking.com" className="help-link">
-                      📧 Contact Support
+                       Contact Support
                     </a>
                     <a href="tel:+1-800-HOTELS" className="help-link">
-                      📞 Call Us
+                       Call Us
                     </a>
                   </div>
                 </div>
               </details>
             </div>
           </div>
-
-          {/* Footer */}
           <div className="not-found-footer">
             <p>&copy; 2024 Hotel Booking System. All rights reserved.</p>
           </div>

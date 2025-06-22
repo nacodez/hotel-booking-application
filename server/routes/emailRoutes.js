@@ -4,7 +4,6 @@ import { optionalAuth, requireAuth } from '../middleware/authMiddleware.js'
 
 const router = express.Router()
 
-// Apply authentication middleware to all email routes
 router.use(optionalAuth)
 
 /**

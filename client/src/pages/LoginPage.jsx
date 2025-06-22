@@ -18,15 +18,47 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showForgotPassword, setShowForgotPassword] = useState(false)
 
-  // Redirect if already logged in
+  const { returnTo, bookingIntent, message } = location.state || {}
+
   useEffect(() => {
     if (currentUser) {
-      const from = location.state?.from?.pathname || '/dashboard'
-      navigate(from, { replace: true })
+      handlePostLoginRedirect()
     }
   }, [currentUser, navigate, location])
 
-  // Validation functions
+  const handlePostLoginRedirect = () => {
+    if (returnTo && bookingIntent) {
+      if (bookingIntent.isBrowsingMode) {
+        navigate('/?selectDates=true', {
+          state: {
+            selectedRoom: {
+              id: bookingIntent.room.id,
+              title: bookingIntent.room.title,
+              price: bookingIntent.room.price
+            }
+          }
+        })
+      } else {
+        navigate('/booking/confirmation', {
+          state: {
+            bookingDetails: {
+              roomId: bookingIntent.room.id,
+              roomName: bookingIntent.room.title,
+              roomImage: bookingIntent.room.image,
+              pricePerNight: bookingIntent.room.pricePerNight,
+              ...bookingIntent.searchCriteria
+            }
+          }
+        })
+      }
+    } else if (returnTo) {
+      navigate(returnTo, { replace: true })
+    } else {
+      const from = location.state?.from?.pathname || '/dashboard'
+      navigate(from, { replace: true })
+    }
+  }
+
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
@@ -57,7 +89,6 @@ const LoginPage = () => {
       [name]: type === 'checkbox' ? checked : value
     }))
 
-    // Clear validation error for this field
     if (validationErrors[name]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev }
@@ -82,9 +113,6 @@ const LoginPage = () => {
     try {
       await login(formData.email, formData.password, formData.rememberMe)
       
-      // Redirect to intended page or dashboard
-      const from = location.state?.from?.pathname || '/dashboard'
-      navigate(from, { replace: true })
     } catch (error) {
       console.error('Login error:', error)
       setValidationErrors({
@@ -110,7 +138,6 @@ const LoginPage = () => {
 
     setIsLoading(true)
     try {
-      // Simulate password reset email
       await new Promise(resolve => setTimeout(resolve, 1500))
       setShowForgotPassword(true)
       setValidationErrors({})
@@ -129,7 +156,7 @@ const LoginPage = () => {
     <div className="auth-page">
       <div className="auth-container">
         <div className="auth-card">
-          {/* Hotel Logo */}
+
           <div className="auth-header">
             <div className="hotel-logo">
               <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -143,17 +170,18 @@ const LoginPage = () => {
             <h1 className="auth-title">Welcome Back</h1>
             <p className="auth-subtitle">Sign in to your account to continue</p>
           </div>
-
-          {/* Success Message */}
+          {message && (
+            <div className="alert alert-info">
+              {message}
+            </div>
+          )}
           {showForgotPassword && (
             <div className="alert alert-success">
               Password reset instructions have been sent to your email address.
             </div>
           )}
-
-          {/* Login Form */}
           <form onSubmit={handleSubmit} className="auth-form">
-            {/* Email Field */}
+
             <div className="form-group">
               <label htmlFor="email" className="form-label">Email Address</label>
               <div className="input-container">
@@ -179,8 +207,6 @@ const LoginPage = () => {
                 <div className="form-error">{validationErrors.email}</div>
               )}
             </div>
-
-            {/* Password Field */}
             <div className="form-group">
               <label htmlFor="password" className="form-label">Password</label>
               <div className="input-container">
@@ -218,8 +244,6 @@ const LoginPage = () => {
                 <div className="form-error">{validationErrors.password}</div>
               )}
             </div>
-
-            {/* Form Options */}
             <div className="form-options">
               <label className="checkbox-container">
                 <input
@@ -242,13 +266,9 @@ const LoginPage = () => {
                 Forgot password?
               </button>
             </div>
-
-            {/* Submit Error */}
             {validationErrors.submit && (
               <div className="form-error submit-error">{validationErrors.submit}</div>
             )}
-
-            {/* Submit Button */}
             <button
               type="submit"
               className="auth-submit-btn"
@@ -264,8 +284,6 @@ const LoginPage = () => {
               )}
             </button>
           </form>
-
-          {/* Register Link */}
           <div className="auth-footer">
             <p>
               Don't have an account?{' '}

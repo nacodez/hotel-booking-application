@@ -15,34 +15,25 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Check for existing auth token on app load
   useEffect(() => {
     const checkAuthStatus = async () => {
-      console.log('🔍 Checking auth status...')
       const token = localStorage.getItem('authToken')
-      console.log('🔑 Token exists:', !!token)
       
       if (token) {
         try {
-          console.log('📞 Calling getUserProfile API...')
           const response = await authAPI.getUserProfile()
-          console.log('✅ Profile response:', response)
           
           if (response.success && response.data?.user) {
             setCurrentUser(response.data.user)
-            console.log('👤 Current user set:', response.data.user)
           } else {
-            console.log('❌ Invalid profile response format')
             localStorage.removeItem('authToken')
             localStorage.removeItem('refreshToken')
           }
         } catch (error) {
-          console.error('❌ Error validating token:', error)
+          console.error(' Error validating token:', error)
           localStorage.removeItem('authToken')
           localStorage.removeItem('refreshToken')
         }
-      } else {
-        console.log('🚫 No auth token found')
       }
       setIsLoading(false)
     }
@@ -52,21 +43,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password, rememberMe = false) => {
     try {
-      console.log('🔐 Attempting login for:', email)
       const response = await authAPI.login({ email, password })
-      console.log('🔐 Login response:', response)
       
       if (response.success) {
         const { user, tokens } = response.data
-        console.log('🔐 Login successful, user:', user)
-        console.log('🔐 Tokens received:', { accessToken: !!tokens?.accessToken, refreshToken: !!tokens?.refreshToken })
         
-        // Store tokens
         localStorage.setItem('authToken', tokens.accessToken)
         localStorage.setItem('refreshToken', tokens.refreshToken)
-        console.log('🔐 Tokens stored in localStorage')
         
-        // Handle remember me functionality
         if (rememberMe) {
           localStorage.setItem('rememberUser', 'true')
         } else {
@@ -74,20 +58,36 @@ export const AuthProvider = ({ children }) => {
         }
         
         setCurrentUser(user)
-        console.log('🔐 Current user set to:', user)
         return user
       } else {
         throw new Error(response.message || 'Login failed')
       }
     } catch (error) {
-      console.error('❌ Login error:', error)
+      console.error(' AuthContext: Login error details:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        hasResponse: !!error.response,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        responseData: error.response?.data
+      })
       
-      // Handle specific error messages
-      if (error.response?.data?.message) {
-        throw new Error(error.response.data.message)
-      } else {
-        throw new Error(error.message || 'Login failed. Please try again.')
+      let errorMessage = 'Login failed. Please try again.'
+      
+      if (error.isCorsError || error.message.includes('CORS Error')) {
+        errorMessage = 'Server configuration error (CORS). Please contact support or try again later.'
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Login request timed out. Please check your internet connection and try again.'
+      } else if (error.message.includes('Unable to connect')) {
+        errorMessage = 'Unable to connect to server. Please check your internet connection or try again later.'
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
       }
+      
+      throw new Error(errorMessage)
     }
   }
 
@@ -98,12 +98,10 @@ export const AuthProvider = ({ children }) => {
       if (response.success) {
         const { user, tokens, requiresApproval } = response.data
         
-        // For hotel owners requiring approval, don't set tokens
         if (requiresApproval) {
           return { user, requiresApproval: true }
         }
         
-        // Store tokens for regular users and admins
         if (tokens) {
           localStorage.setItem('authToken', tokens.accessToken)
           localStorage.setItem('refreshToken', tokens.refreshToken)
@@ -117,7 +115,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Registration error:', error)
       
-      // Handle specific error messages
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message)
       } else {
@@ -128,15 +125,12 @@ export const AuthProvider = ({ children }) => {
 
   const logoutUser = async () => {
     try {
-      // Call logout API if user is authenticated
       if (currentUser) {
         await authAPI.logout()
       }
     } catch (error) {
       console.error('Error during logout API call:', error)
-      // Continue with local logout even if API call fails
     } finally {
-      // Clear local storage and state
       localStorage.removeItem('authToken')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('rememberUser')
@@ -148,7 +142,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.updateProfile(updates)
       if (response.success) {
-        // Update current user state with new data
         const updatedProfile = await authAPI.getUserProfile()
         setCurrentUser(updatedProfile.data.user)
         return updatedProfile.data.user
@@ -172,22 +165,18 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // Helper function to check if user has specific role
   const hasRole = (role) => {
     return currentUser?.roles?.includes(role) || false
   }
 
-  // Helper function to check if user is admin
   const isAdmin = () => {
     return hasRole('admin')
   }
 
-  // Helper function to check if user is hotel owner
   const isHotelOwner = () => {
     return hasRole('hotel-owner')
   }
 
-  // Helper function to check if user is regular user
   const isUser = () => {
     return hasRole('user')
   }

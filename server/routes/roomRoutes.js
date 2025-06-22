@@ -129,20 +129,16 @@ const validateRoomAvailability = [
 // PUBLIC ROUTES
 // ==========================================
 
-// Search available rooms
 router.post('/search', optionalAuth, validateSearchCriteria, searchAvailableRooms)
 
-// Get all rooms (public)
 router.get('/all', optionalAuth, getAllRooms)
 
-// Get room details
 router.get('/:roomId', optionalAuth, getRoomDetails)
 
 // ==========================================
 // HOTEL OWNER ROUTES
 // ==========================================
 
-// Create room
 router.post('/create', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
@@ -150,7 +146,6 @@ router.post('/create',
   createRoom
 )
 
-// Update room
 router.put('/:roomId', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
@@ -158,7 +153,6 @@ router.put('/:roomId',
   updateRoom
 )
 
-// Delete room
 router.delete('/:roomId', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
@@ -166,7 +160,6 @@ router.delete('/:roomId',
   deleteRoom
 )
 
-// Get room bookings
 router.get('/:roomId/bookings', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 
@@ -179,7 +172,6 @@ router.get('/:roomId/bookings',
   getRoomBookings
 )
 
-// Toggle room availability
 router.put('/:roomId/availability', 
   verifyJWTToken, 
   requireRole(['hotel-owner']), 

@@ -1,5 +1,4 @@
 // Data validation schemas for Firebase collections and API requests
-// Using Joi for comprehensive validation
 
 import Joi from 'joi'
 

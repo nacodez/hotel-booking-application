@@ -5,7 +5,6 @@ import { AuthenticationError, ConflictError } from '../middleware/errorHandler.j
 const auth = getAuthAdmin()
 
 export class FirebaseAuthService {
-  // Create a Firebase user
   static async createFirebaseUser(userData) {
     try {
       const userRecord = await auth.createUser({
@@ -16,7 +15,6 @@ export class FirebaseAuthService {
         disabled: false
       })
 
-      // Create corresponding Firestore document
       await UserService.createUser({
         ...userData,
         uid: userRecord.uid,
@@ -32,7 +30,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Get Firebase user by UID
   static async getFirebaseUser(uid) {
     try {
       const userRecord = await auth.getUser(uid)
@@ -45,7 +42,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Get Firebase user by email
   static async getFirebaseUserByEmail(email) {
     try {
       const userRecord = await auth.getUserByEmail(email)
@@ -58,7 +54,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Update Firebase user
   static async updateFirebaseUser(uid, updates) {
     try {
       const userRecord = await auth.updateUser(uid, updates)
@@ -68,7 +63,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Delete Firebase user
   static async deleteFirebaseUser(uid) {
     try {
       await auth.deleteUser(uid)
@@ -78,7 +72,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Verify ID token
   static async verifyIdToken(idToken, checkRevoked = false) {
     try {
       const decodedToken = await auth.verifyIdToken(idToken, checkRevoked)
@@ -95,7 +88,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Generate custom token
   static async createCustomToken(uid, additionalClaims = {}) {
     try {
       const customToken = await auth.createCustomToken(uid, additionalClaims)
@@ -105,7 +97,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Set custom user claims (for role-based access)
   static async setCustomUserClaims(uid, customClaims) {
     try {
       await auth.setCustomUserClaims(uid, customClaims)
@@ -125,7 +116,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Generate password reset link
   static async generatePasswordResetLink(email, actionCodeSettings = {}) {
     try {
       const link = await auth.generatePasswordResetLink(email, actionCodeSettings)
@@ -135,7 +125,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Generate email verification link
   static async generateEmailVerificationLink(email, actionCodeSettings = {}) {
     try {
       const link = await auth.generateEmailVerificationLink(email, actionCodeSettings)
@@ -145,7 +134,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // List users with pagination
   static async listUsers(maxResults = 1000, pageToken = undefined) {
     try {
       const listUsersResult = await auth.listUsers(maxResults, pageToken)
@@ -158,7 +146,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Import users (bulk operation)
   static async importUsers(users, options = {}) {
     try {
       const result = await auth.importUsers(users, options)
@@ -168,7 +155,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Create session cookie
   static async createSessionCookie(idToken, expiresIn) {
     try {
       const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn })
@@ -178,7 +164,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Verify session cookie
   static async verifySessionCookie(sessionCookie, checkRevoked = false) {
     try {
       const decodedClaims = await auth.verifySessionCookie(sessionCookie, checkRevoked)
@@ -188,12 +173,10 @@ export class FirebaseAuthService {
     }
   }
 
-  // Disable user account
   static async disableUser(uid) {
     try {
       await auth.updateUser(uid, { disabled: true })
       
-      // Update Firestore user status
       await UserService.updateUserStatus(uid, 'suspended')
       
       return true
@@ -202,12 +185,10 @@ export class FirebaseAuthService {
     }
   }
 
-  // Enable user account
   static async enableUser(uid) {
     try {
       await auth.updateUser(uid, { disabled: false })
       
-      // Update Firestore user status
       await UserService.updateUserStatus(uid, 'active')
       
       return true
@@ -216,7 +197,6 @@ export class FirebaseAuthService {
     }
   }
 
-  // Get user activity data
   static async getUserActivity(uid) {
     try {
       const userRecord = await auth.getUser(uid)
@@ -241,19 +221,16 @@ export class FirebaseAuthService {
   }
 }
 
-// Enhanced authentication service with additional features
 export class AuthenticationService {
   // Comprehensive user registration
   static async registerUser(userData) {
     const { email, password, firstName, lastName, phoneNumber } = userData
 
-    // Check if user already exists in Firestore
     const existingUser = await UserService.getUserByEmail(email)
     if (existingUser) {
       throw new ConflictError('User already exists')
     }
 
-    // Create Firebase user
     const firebaseUser = await FirebaseAuthService.createFirebaseUser({
       email,
       password,
@@ -270,16 +247,12 @@ export class AuthenticationService {
     }
   }
 
-  // Enhanced login with activity tracking
   static async loginUser(idToken) {
-    // Verify the ID token
     const decodedToken = await FirebaseAuthService.verifyIdToken(idToken)
     
-    // Get or create user in Firestore
     let userData = await UserService.getUserById(decodedToken.uid).catch(() => null)
     
     if (!userData) {
-      // Create user document for existing Firebase users
       const firebaseUser = await FirebaseAuthService.getFirebaseUser(decodedToken.uid)
       
       userData = await UserService.createUser({
@@ -294,7 +267,6 @@ export class AuthenticationService {
       })
     }
 
-    // Update last login time
     await UserService.updateUser(decodedToken.uid, {
       lastLoginAt: new Date()
     })
@@ -305,13 +277,11 @@ export class AuthenticationService {
     }
   }
 
-  // Logout with token revocation
   static async logoutUser(uid) {
     try {
       // Revoke all refresh tokens
       await FirebaseAuthService.revokeRefreshTokens(uid)
       
-      // Update last logout time
       await UserService.updateUser(uid, {
         lastLogoutAt: new Date()
       })
@@ -365,7 +335,6 @@ export class AuthenticationService {
     }
   }
 
-  // Change user password
   static async changePassword(uid, newPassword) {
     await FirebaseAuthService.updateFirebaseUser(uid, {
       password: newPassword
@@ -377,11 +346,9 @@ export class AuthenticationService {
     return { success: true, message: 'Password changed successfully' }
   }
 
-  // Update user profile
   static async updateProfile(uid, updates) {
     const { email, displayName, phoneNumber, photoURL, ...firestoreUpdates } = updates
 
-    // Update Firebase Auth user
     const firebaseUpdates = {}
     if (email) firebaseUpdates.email = email
     if (displayName) firebaseUpdates.displayName = displayName
@@ -392,7 +359,6 @@ export class AuthenticationService {
       await FirebaseAuthService.updateFirebaseUser(uid, firebaseUpdates)
     }
 
-    // Update Firestore user document
     if (Object.keys(firestoreUpdates).length > 0) {
       await UserService.updateUser(uid, firestoreUpdates)
     }
@@ -400,9 +366,7 @@ export class AuthenticationService {
     return { success: true, message: 'Profile updated successfully' }
   }
 
-  // Delete user account
   static async deleteAccount(uid) {
-    // Cancel active bookings
     const activeBookings = await BookingService.getUserBookings(uid, {
       status: ['confirmed', 'pending']
     })
@@ -414,7 +378,6 @@ export class AuthenticationService {
     // Soft delete in Firestore
     await UserService.deleteUser(uid)
 
-    // Delete Firebase Auth user
     await FirebaseAuthService.deleteFirebaseUser(uid)
 
     return { success: true, message: 'Account deleted successfully' }
@@ -422,10 +385,8 @@ export class AuthenticationService {
 
   // Admin functions
   static async setUserRole(uid, roles) {
-    // Update custom claims
     await FirebaseAuthService.setCustomUserClaims(uid, { roles })
     
-    // Update Firestore document
     await UserService.updateUser(uid, { roles })
 
     return { success: true, message: 'User roles updated' }

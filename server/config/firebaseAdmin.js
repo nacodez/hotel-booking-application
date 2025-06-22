@@ -12,7 +12,6 @@ export const initializeFirebaseAdmin = () => {
   }
 
   try {
-    // Check if already initialized
     if (admin.apps.length > 0) {
       console.log('Firebase Admin already initialized')
       db = admin.firestore()
@@ -20,15 +19,12 @@ export const initializeFirebaseAdmin = () => {
       return admin
     }
 
-    // Check if using demo/emulator mode
     const isDemoMode = process.env.FIREBASE_PROJECT_ID === 'demo-project' || 
-                       process.env.NODE_ENV === 'development' || 
                        process.env.USE_EMULATOR === 'true'
 
     if (isDemoMode) {
-      console.log('🔥 Initializing Firebase Admin in emulator mode')
+      console.log('Initializing Firebase Admin in emulator mode')
       
-      // Initialize with minimal config for emulator
       admin.initializeApp({
         projectId: 'demo-project',
         databaseURL: 'https://demo-project-default-rtdb.firebaseio.com'
@@ -36,29 +32,33 @@ export const initializeFirebaseAdmin = () => {
 
       db = admin.firestore()
       
-      // Configure for emulator
       if (process.env.FIRESTORE_EMULATOR_HOST || process.env.NODE_ENV === 'development') {
-        // Set emulator host if not already set
         if (!process.env.FIRESTORE_EMULATOR_HOST) {
           process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080'
         }
-        console.log('🔥 Using Firestore emulator at:', process.env.FIRESTORE_EMULATOR_HOST)
+        console.log(' Using Firestore emulator at:', process.env.FIRESTORE_EMULATOR_HOST)
       }
 
       firebaseAdminInitialized = true
-      console.log('✅ Firebase Admin initialized in emulator mode')
+      console.log(' Firebase Admin initialized in emulator mode')
       
     } else {
-      // Production mode with service account
-      console.log('🔧 Initializing Firebase Admin in production mode...')
+      console.log(' Initializing Firebase Admin in production mode...')
       
-      // Validate required credentials
       const requiredFields = ['FIREBASE_PROJECT_ID', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL']
       for (const field of requiredFields) {
         if (!process.env[field]) {
           throw new Error(`Missing required Firebase credential: ${field}`)
         }
       }
+
+      console.log(' Firebase credentials check:', {
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
+        privateKeyLength: process.env.FIREBASE_PRIVATE_KEY?.length || 0,
+        hasNewlines: process.env.FIREBASE_PRIVATE_KEY?.includes('\\n') || false
+      })
       
       const serviceAccount = {
         type: "service_account",
@@ -73,7 +73,7 @@ export const initializeFirebaseAdmin = () => {
         client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
       }
 
-      console.log('🔑 Service account config:', {
+      console.log(' Service account config:', {
         project_id: serviceAccount.project_id,
         client_email: serviceAccount.client_email,
         private_key_preview: serviceAccount.private_key?.substring(0, 50) + '...'
@@ -87,11 +87,32 @@ export const initializeFirebaseAdmin = () => {
       db = admin.firestore()
 
       firebaseAdminInitialized = true
-      console.log('✅ Firebase Admin initialized in production mode')
+      console.log(' Firebase Admin initialized in production mode')
     }
 
   } catch (error) {
     console.error('Error initializing Firebase Admin:', error)
+    
+    if (!isDemoMode) {
+      console.log('Falling back to emulator mode...')
+      try {
+        admin.initializeApp({
+          projectId: 'demo-project',
+          databaseURL: 'https://demo-project-default-rtdb.firebaseio.com'
+        })
+        
+        db = admin.firestore()
+        process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080'
+        console.log(' Using Firestore emulator at:', process.env.FIRESTORE_EMULATOR_HOST)
+        
+        firebaseAdminInitialized = true
+        console.log(' Firebase Admin initialized in emulator fallback mode')
+        return admin
+      } catch (fallbackError) {
+        console.error('Fallback to emulator also failed:', fallbackError)
+      }
+    }
+    
     throw new Error('Failed to initialize Firebase Admin SDK')
   }
 
@@ -115,7 +136,6 @@ export const getAuthAdmin = () => {
   return admin.auth()
 }
 
-// Collections
 export const COLLECTIONS = {
   USERS: 'users',
   BOOKINGS: 'bookings',
@@ -125,7 +145,6 @@ export const COLLECTIONS = {
   HOTEL_APPLICATIONS: 'hotel_applications'
 }
 
-// Helper functions for common operations
 export const createDocument = async (collection, data) => {
   try {
     const firestore = getFirestoreAdmin()
@@ -174,17 +193,14 @@ export const queryDocuments = async (collection, filters = [], orderBy = null, l
     const firestore = getFirestoreAdmin()
     let query = firestore.collection(collection)
 
-    // Apply filters
     filters.forEach(filter => {
       query = query.where(filter.field, filter.operator, filter.value)
     })
 
-    // Apply ordering
     if (orderBy) {
       query = query.orderBy(orderBy.field, orderBy.direction || 'asc')
     }
 
-    // Apply limit
     if (limit) {
       query = query.limit(limit)
     }

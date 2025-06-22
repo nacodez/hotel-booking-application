@@ -52,7 +52,6 @@ const generateRefreshToken = (userId) => {
   )
 }
 
-// Password hashing
 const hashPassword = async (password) => {
   const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12
   return await bcrypt.hash(password, saltRounds)
@@ -62,7 +61,6 @@ const verifyPassword = async (password, hashedPassword) => {
   return await bcrypt.compare(password, hashedPassword)
 }
 
-// Register endpoint
 export const register = asyncHandler(async (req, res) => {
   const { 
     firstName, 
@@ -74,13 +72,11 @@ export const register = asyncHandler(async (req, res) => {
     businessInfo // For hotel owners
   } = req.body
 
-  // Validate role
   const validRoles = ['user', 'hotel-owner', 'admin']
   if (!validRoles.includes(role)) {
     throw new ValidationError('Invalid role specified')
   }
 
-  // Check if user already exists
   const existingUsers = await queryDocuments(COLLECTIONS.USERS, [
     { field: 'email', operator: '==', value: email.toLowerCase() }
   ])
@@ -89,14 +85,11 @@ export const register = asyncHandler(async (req, res) => {
     throw new ConflictError('User with this email already exists')
   }
 
-  // Hash password
   const hashedPassword = await hashPassword(password)
 
-  // Determine user status based on role
   const userStatus = role === 'hotel-owner' ? 'pending-approval' : 'active'
   const userRoles = [role]
 
-  // Create base user document
   const userData = {
     firstName: firstName.trim(),
     lastName: lastName.trim(),
@@ -120,7 +113,6 @@ export const register = asyncHandler(async (req, res) => {
     registrationDate: new Date()
   }
 
-  // Add role-specific data
   if (role === 'hotel-owner') {
     userData.businessInfo = {
       businessName: businessInfo?.businessName?.trim() || null,
@@ -141,7 +133,6 @@ export const register = asyncHandler(async (req, res) => {
 
   const userId = await createDocument(COLLECTIONS.USERS, userData)
 
-  // For hotel owners pending approval, don't generate tokens immediately
   if (role === 'hotel-owner') {
     res.status(201).json({
       success: true,
@@ -163,11 +154,9 @@ export const register = asyncHandler(async (req, res) => {
     return
   }
 
-  // Generate tokens for regular users and admins
   const accessToken = generateJWTToken(userId, email)
   const refreshToken = generateRefreshToken(userId)
 
-  // Store refresh token
   await updateDocument(COLLECTIONS.USERS, userId, {
     refreshToken: refreshToken,
     lastLoginAt: new Date()
@@ -195,11 +184,9 @@ export const register = asyncHandler(async (req, res) => {
   })
 })
 
-// Login endpoint
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body
 
-  // Find user by email
   const users = await queryDocuments(COLLECTIONS.USERS, [
     { field: 'email', operator: '==', value: email.toLowerCase() }
   ])
@@ -210,7 +197,6 @@ export const login = asyncHandler(async (req, res) => {
 
   const user = users[0]
 
-  // Check if account is active
   if (user.status === 'deactivated') {
     throw new AuthenticationError('Account has been deactivated')
   }
@@ -228,17 +214,14 @@ export const login = asyncHandler(async (req, res) => {
     throw new AuthenticationError(`Account registration was rejected. Reason: ${reason}`)
   }
 
-  // Verify password
   const isPasswordValid = await verifyPassword(password, user.password)
   if (!isPasswordValid) {
     throw new AuthenticationError('Invalid email or password')
   }
 
-  // Generate tokens
   const accessToken = generateJWTToken(user.id, user.email)
   const refreshToken = generateRefreshToken(user.id)
 
-  // Update login history and refresh token
   const loginEntry = {
     timestamp: new Date(),
     ip: req.ip,
@@ -275,11 +258,9 @@ export const login = asyncHandler(async (req, res) => {
   })
 })
 
-// Logout endpoint
 export const logout = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
 
-  // Clear refresh token
   await updateDocument(COLLECTIONS.USERS, userId, {
     refreshToken: null,
     lastLogoutAt: new Date()
@@ -291,9 +272,7 @@ export const logout = asyncHandler(async (req, res) => {
   })
 })
 
-// Verify token endpoint
 export const verifyToken = asyncHandler(async (req, res) => {
-  // If we reach here, the token is valid (verified by middleware)
   const userId = req.user.userId || req.user.uid
   const userData = req.user.userData
 
@@ -313,7 +292,6 @@ export const verifyToken = asyncHandler(async (req, res) => {
   })
 })
 
-// Firebase token verification (legacy support)
 export const verifyFirebaseToken = asyncHandler(async (req, res) => {
   const { idToken } = req.body
 
@@ -326,7 +304,6 @@ export const verifyFirebaseToken = asyncHandler(async (req, res) => {
   let userData = await getDocument(COLLECTIONS.USERS, decodedToken.uid)
   
   if (!userData) {
-    // Create user profile for Firebase users
     const newUserData = {
       email: decodedToken.email,
       emailVerified: decodedToken.email_verified,
@@ -342,7 +319,6 @@ export const verifyFirebaseToken = asyncHandler(async (req, res) => {
     userData = { id: decodedToken.uid, ...newUserData }
   }
 
-  // Update last login
   await updateDocument(COLLECTIONS.USERS, decodedToken.uid, {
     lastLoginAt: new Date()
   })
@@ -363,7 +339,6 @@ export const verifyFirebaseToken = asyncHandler(async (req, res) => {
   })
 })
 
-// Refresh token endpoint
 export const refreshToken = asyncHandler(async (req, res) => {
   const { refreshToken } = req.body
 
@@ -378,17 +353,14 @@ export const refreshToken = asyncHandler(async (req, res) => {
       throw new AuthenticationError('Invalid token type')
     }
 
-    // Get user and verify refresh token
     const userData = await getDocument(COLLECTIONS.USERS, decoded.userId)
     if (!userData || userData.refreshToken !== refreshToken) {
       throw new AuthenticationError('Invalid refresh token')
     }
 
-    // Generate new tokens
     const newAccessToken = generateJWTToken(userData.id, userData.email)
     const newRefreshToken = generateRefreshToken(userData.id)
 
-    // Update stored refresh token
     await updateDocument(COLLECTIONS.USERS, userData.id, {
       refreshToken: newRefreshToken
     })
@@ -409,7 +381,6 @@ export const refreshToken = asyncHandler(async (req, res) => {
   }
 })
 
-// Change password endpoint
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body
   const userId = req.user.userId || req.user.uid
@@ -419,16 +390,13 @@ export const changePassword = asyncHandler(async (req, res) => {
     throw new NotFoundError('User not found')
   }
 
-  // Verify current password
   const isCurrentPasswordValid = await verifyPassword(currentPassword, userData.password)
   if (!isCurrentPasswordValid) {
     throw new AuthenticationError('Current password is incorrect')
   }
 
-  // Hash new password
   const hashedNewPassword = await hashPassword(newPassword)
 
-  // Update password and invalidate refresh token
   await updateDocument(COLLECTIONS.USERS, userId, {
     password: hashedNewPassword,
     refreshToken: null,
@@ -441,7 +409,6 @@ export const changePassword = asyncHandler(async (req, res) => {
   })
 })
 
-// Get user profile
 export const getUserProfile = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
 
@@ -450,7 +417,6 @@ export const getUserProfile = asyncHandler(async (req, res) => {
     throw new NotFoundError('User profile not found')
   }
 
-  // Remove sensitive information
   const { password, refreshToken, ...safeUserData } = userData
 
   res.json({
@@ -464,12 +430,10 @@ export const getUserProfile = asyncHandler(async (req, res) => {
   })
 })
 
-// Update user profile
 export const updateUserProfile = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
   const updates = req.body
 
-  // Remove fields that shouldn't be updated via this endpoint
   const { password, email, roles, status, refreshToken, ...allowedUpdates } = updates
 
   if (Object.keys(allowedUpdates).length === 0) {
@@ -484,11 +448,9 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
   })
 })
 
-// Delete user account
 export const deleteUserAccount = asyncHandler(async (req, res) => {
   const userId = req.user.userId || req.user.uid
 
-  // Cancel all active bookings
   const activeBookings = await queryDocuments(COLLECTIONS.BOOKINGS, [
     { field: 'userId', operator: '==', value: userId },
     { field: 'status', operator: 'in', value: ['confirmed', 'pending'] }
@@ -502,7 +464,6 @@ export const deleteUserAccount = asyncHandler(async (req, res) => {
     })
   }
 
-  // Soft delete user (mark as deleted instead of actual deletion)
   await updateDocument(COLLECTIONS.USERS, userId, {
     status: 'deleted',
     deletedAt: new Date(),
@@ -520,13 +481,11 @@ export const deleteUserAccount = asyncHandler(async (req, res) => {
 // ADMIN FUNCTIONS FOR USER MANAGEMENT
 // ==========================================
 
-// Get pending users for approval
 export const getPendingUsers = asyncHandler(async (req, res) => {
   const pendingUsers = await queryDocuments(COLLECTIONS.USERS, [
     { field: 'status', operator: '==', value: 'pending-approval' }
   ])
 
-  // Remove sensitive information
   const safeUsers = pendingUsers.map(user => {
     const { password, refreshToken, ...safeUser } = user
     return safeUser
@@ -541,7 +500,6 @@ export const getPendingUsers = asyncHandler(async (req, res) => {
   })
 })
 
-// Approve user registration
 export const approveUser = asyncHandler(async (req, res) => {
   const { userId } = req.params
   const { comments } = req.body
@@ -556,7 +514,6 @@ export const approveUser = asyncHandler(async (req, res) => {
     throw new ValidationError('User is not pending approval')
   }
 
-  // Update user status to active
   await updateDocument(COLLECTIONS.USERS, userId, {
     status: 'active',
     approvalStatus: 'approved',
@@ -575,7 +532,6 @@ export const approveUser = asyncHandler(async (req, res) => {
   })
 })
 
-// Reject user registration
 export const rejectUser = asyncHandler(async (req, res) => {
   const { userId } = req.params
   const { reason, comments } = req.body
@@ -594,7 +550,6 @@ export const rejectUser = asyncHandler(async (req, res) => {
     throw new ValidationError('User is not pending approval')
   }
 
-  // Update user status to rejected
   await updateDocument(COLLECTIONS.USERS, userId, {
     status: 'rejected',
     approvalStatus: 'rejected',
@@ -615,7 +570,6 @@ export const rejectUser = asyncHandler(async (req, res) => {
   })
 })
 
-// Get all users with filtering and pagination
 export const getAllUsers = asyncHandler(async (req, res) => {
   const { 
     status, 
@@ -638,7 +592,6 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   const allUsers = await queryDocuments(COLLECTIONS.USERS, filters, 
     { field: 'registrationDate', direction: 'desc' })
 
-  // Apply search filter if provided
   let filteredUsers = allUsers
   if (search) {
     const searchLower = search.toLowerCase()
@@ -650,12 +603,10 @@ export const getAllUsers = asyncHandler(async (req, res) => {
     )
   }
 
-  // Apply pagination
   const startIndex = (page - 1) * limit
   const endIndex = startIndex + parseInt(limit)
   const paginatedUsers = filteredUsers.slice(startIndex, endIndex)
 
-  // Remove sensitive information
   const safeUsers = paginatedUsers.map(user => {
     const { password, refreshToken, ...safeUser } = user
     return safeUser
@@ -675,7 +626,6 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   })
 })
 
-// Update user role (admin only)
 export const updateUserRole = asyncHandler(async (req, res) => {
   const { userId } = req.params
   const { roles } = req.body
@@ -714,7 +664,6 @@ export const updateUserRole = asyncHandler(async (req, res) => {
   })
 })
 
-// Suspend/Unsuspend user
 export const toggleUserSuspension = asyncHandler(async (req, res) => {
   const { userId } = req.params
   const { reason, suspend = true } = req.body

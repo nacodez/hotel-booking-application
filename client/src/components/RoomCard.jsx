@@ -1,16 +1,11 @@
 import { useState } from 'react'
 
-const RoomCard = ({ room, onBookRoom, isLoading = false }) => {
+const RoomCard = ({ room, onBookRoom, isLoading = false, buttonText = 'BOOK ROOM' }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-SG', {
-      style: 'currency',
-      currency: 'SGD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price).replace('SGD', 'S$')
+    return `S$${Math.round(price)}`
   }
 
   const handleBookRoom = () => {
@@ -35,7 +30,7 @@ const RoomCard = ({ room, onBookRoom, isLoading = false }) => {
   return (
     <div className="room-card-container">
       <div className="room-card">
-        {/* Room Image */}
+
         <div className="room-image-container">
           {!imageLoaded && (
             <div className="room-image-skeleton">
@@ -61,29 +56,29 @@ const RoomCard = ({ room, onBookRoom, isLoading = false }) => {
             />
           )}
         </div>
-
-        {/* Room Details */}
         <div className="room-details">
           <div className="room-content">
-            <h3 className="room-title">{room.title || 'ROOM TITLE'}</h3>
-            <p className="room-subtitle">{room.subtitle || 'LOREM IPSUM DOLOR SIT AMET'}</p>
+            <h3 className="room-title">{room.title || room.name || 'ROOM TITLE'}</h3>
+            <p className="room-subtitle">
+              {room.subtitle || (room.type ? `${room.type.charAt(0).toUpperCase() + room.type.slice(1)} Room` : 'LOREM IPSUM DOLOR SIT AMET')}
+            </p>
             <p className="room-description">
               {room.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'}
             </p>
             
             {room.amenities && room.amenities.length > 0 && (
               <div className="room-amenities">
-                {room.amenities.slice(0, 4).map((amenity, index) => (
+                {room.amenities.slice(0, 3).map((amenity, index) => (
                   <span key={index} className="amenity-tag">{amenity}</span>
                 ))}
               </div>
             )}
           </div>
-
+          
           <div className="room-booking">
             <div className="room-pricing">
               <div className="room-price">
-                {formatPrice(room.pricePerNight || 1080)}/night
+                {formatPrice(room.price || 150)}/night
               </div>
               <div className="price-disclaimer">
                 Subject to GST and charges
@@ -95,7 +90,7 @@ const RoomCard = ({ room, onBookRoom, isLoading = false }) => {
               onClick={handleBookRoom}
               disabled={isLoading}
             >
-              BOOK ROOM
+              {buttonText}
             </button>
           </div>
         </div>

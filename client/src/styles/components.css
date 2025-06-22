@@ -30,10 +30,6 @@
   box-shadow: var(--shadow-md);
 }
 
-.room-content {
-  margin-bottom: var(--spacing-8);
-}
-
 .room-content h1 {
   margin-bottom: var(--spacing-4);
 }
@@ -69,7 +65,7 @@
 }
 
 .room-amenities li:before {
-  content: "✓";
+  content: "";
   color: var(--color-success);
   font-weight: var(--font-weight-bold);
   margin-right: var(--spacing-2);
@@ -156,6 +152,12 @@
     box-shadow: var(--shadow-lg);
     border-top: 1px solid var(--color-border);
     gap: var(--spacing-3);
+    height: auto;
+  }
+  
+  .nav-menu.mobile-open li {
+    height: auto;
+    align-items: stretch;
   }
 }
 

@@ -1,6 +1,7 @@
 import { getFirestoreAdmin } from '../config/firebaseAdmin.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
 import emailService from '../services/emailService.js'
+import cacheService from '../services/cacheService.js'
 
 const firestore = getFirestoreAdmin()
 
@@ -11,9 +12,6 @@ const generateConfirmationNumber = () => {
 }
 
 export const createBookingReservation = asyncHandler(async (req, res) => {
-  console.log('🎯 Booking request received')
-  console.log('👤 Full req.user object:', JSON.stringify(req.user, null, 2))
-  
   const {
     roomId,
     roomName,
@@ -26,7 +24,6 @@ export const createBookingReservation = asyncHandler(async (req, res) => {
   } = req.body
 
   const userId = req.user?.uid || req.user?.userId || req.user?.id
-  console.log('👤 Extracted userId:', userId)
 
   if (!userId) {
     return res.status(401).json({
@@ -43,35 +40,13 @@ export const createBookingReservation = asyncHandler(async (req, res) => {
   }
 
   try {
-    console.log('🏨 Checking if room exists:', roomId)
     const roomDoc = await firestore.collection('rooms').doc(roomId).get()
     if (!roomDoc.exists) {
-      console.log('❌ Room not found:', roomId)
       return res.status(404).json({
         success: false,
         message: 'Room not found'
       })
     }
-    console.log('✅ Room found:', roomDoc.data()?.name)
-
-    // TODO: Re-enable booking conflict check after creating Firestore index
-    // For now, skip conflict checking to allow bookings to work
-    console.log('📅 Skipping booking conflict check (index needed)')
-    
-    // const conflictingBookings = await firestore.collection('bookings')
-    //   .where('roomId', '==', roomId)
-    //   .where('status', 'in', ['confirmed', 'checked-in'])
-    //   .where('checkInDate', '<=', checkOutDate)
-    //   .where('checkOutDate', '>=', checkInDate)
-    //   .get()
-
-    // if (!conflictingBookings.empty) {
-    //   return res.status(409).json({
-    //     success: false,
-    //     message: 'Room is not available for the selected dates'
-    //   })
-    // }
-
     const confirmationNumber = generateConfirmationNumber()
     
     const bookingData = {
@@ -90,9 +65,35 @@ export const createBookingReservation = asyncHandler(async (req, res) => {
       updatedAt: new Date().toISOString()
     }
 
-    console.log('💾 Creating booking in Firestore...')
     const bookingRef = await firestore.collection('bookings').add(bookingData)
-    console.log('✅ Booking created successfully:', bookingRef.id)
+
+    try {
+      const roomRef = firestore.collection('rooms').doc(roomId)
+      
+      await firestore.runTransaction(async (transaction) => {
+        const roomDoc = await transaction.get(roomRef)
+        const roomData = roomDoc.data()
+        const currentBookedDates = roomData.bookedDates || []
+        
+        const newBooking = {
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
+          bookingId: bookingRef.id
+        }
+        
+        const updatedBookedDates = [...currentBookedDates, newBooking]
+        
+        transaction.update(roomRef, { bookedDates: updatedBookedDates })
+      })
+    } catch (updateError) {
+      console.error(' Failed to update room bookedDates:', updateError)
+    }
+
+    try {
+      cacheService.invalidateAvailabilityCache(roomId)
+    } catch (cacheError) {
+      console.warn(' Cache invalidation failed during booking creation (non-critical):', cacheError.message)
+    }
 
     res.status(201).json({
       success: true,
@@ -113,12 +114,11 @@ export const createBookingReservation = asyncHandler(async (req, res) => {
 })
 
 export const getUserBookingHistory = asyncHandler(async (req, res) => {
-  const userId = req.user.uid
+  const userId = req.user.userId || req.user.uid
 
   try {
     const bookingsSnapshot = await firestore.collection('bookings')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
       .get()
 
     const userBookings = []
@@ -129,22 +129,36 @@ export const getUserBookingHistory = asyncHandler(async (req, res) => {
       })
     })
 
+    userBookings.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0)
+      const dateB = new Date(b.createdAt || 0)
+      return dateB - dateA // Descending order
+    })
+
     res.json({
       success: true,
       data: userBookings
     })
   } catch (error) {
-    console.error('Error fetching user bookings:', error)
+    console.error(' Error fetching user bookings:', error)
+    console.error(' Error stack:', error.stack)
+    console.error(' Error details:', {
+      message: error.message,
+      code: error.code,
+      name: error.name
+    })
+    
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch booking history'
+      message: `Failed to fetch booking history: ${error.message}`,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 })
 
 export const cancelBookingReservation = asyncHandler(async (req, res) => {
   const { bookingId } = req.params
-  const userId = req.user.uid
+  const userId = req.user.userId || req.user.uid
 
   if (!bookingId) {
     return res.status(400).json({
@@ -154,6 +168,7 @@ export const cancelBookingReservation = asyncHandler(async (req, res) => {
   }
 
   try {
+
     const bookingDoc = await firestore.collection('bookings').doc(bookingId).get()
 
     if (!bookingDoc.exists) {
@@ -168,7 +183,7 @@ export const cancelBookingReservation = asyncHandler(async (req, res) => {
     if (bookingData.userId !== userId) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to cancel this booking'
+        message: `Not authorized to cancel this booking. This booking belongs to user ${bookingData.userId} but you are ${userId}`
       })
     }
 
@@ -178,13 +193,37 @@ export const cancelBookingReservation = asyncHandler(async (req, res) => {
         message: 'Booking is already cancelled'
       })
     }
-
     await firestore.collection('bookings').doc(bookingId).update({
       status: 'cancelled',
       cancelledAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     })
 
+    try {
+
+      const roomRef = firestore.collection('rooms').doc(bookingData.roomId)
+      
+      await firestore.runTransaction(async (transaction) => {
+        const roomDoc = await transaction.get(roomRef)
+        const roomData = roomDoc.data()
+        const currentBookedDates = roomData.bookedDates || []
+        
+        const updatedBookedDates = currentBookedDates.filter(booking => 
+          booking.bookingId !== bookingId
+        )
+        
+        transaction.update(roomRef, { bookedDates: updatedBookedDates })
+
+      })
+    } catch (updateError) {
+      console.error(' Failed to update room bookedDates during cancellation:', updateError)
+    }
+
+    try {
+      cacheService.invalidateAvailabilityCache(bookingData.roomId)
+    } catch (cacheError) {
+      console.warn(' Cache invalidation failed (non-critical):', cacheError.message)
+    }
     res.json({
       success: true,
       message: 'Booking cancelled successfully'
@@ -200,7 +239,7 @@ export const cancelBookingReservation = asyncHandler(async (req, res) => {
 
 export const getBookingDetails = asyncHandler(async (req, res) => {
   const { bookingId } = req.params
-  const userId = req.user.uid
+  const userId = req.user.userId || req.user.uid
 
   try {
     const bookingDoc = await firestore.collection('bookings').doc(bookingId).get()
@@ -239,10 +278,8 @@ export const getBookingDetails = asyncHandler(async (req, res) => {
 
 export const sendBookingEmail = asyncHandler(async (req, res) => {
   const { bookingId } = req.params
+  const { email } = req.body // Get validated email from request body
   const userId = req.user?.uid || req.user?.userId || req.user?.id
-
-  console.log('📧 Email request for booking:', bookingId)
-
   if (!bookingId) {
     return res.status(400).json({
       success: false,
@@ -250,8 +287,14 @@ export const sendBookingEmail = asyncHandler(async (req, res) => {
     })
   }
 
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email address is required'
+    })
+  }
+
   try {
-    // Verify booking exists and belongs to user
     const bookingDoc = await firestore.collection('bookings').doc(bookingId).get()
     
     if (!bookingDoc.exists) {
@@ -270,9 +313,15 @@ export const sendBookingEmail = asyncHandler(async (req, res) => {
       })
     }
 
-    // Send email
-    console.log('📧 Sending email for booking:', bookingId)
-    const emailResult = await emailService.sendBookingConfirmation(bookingId)
+    const bookingDataWithValidatedEmail = {
+      ...bookingData,
+      guestInformation: {
+        ...bookingData.guestInformation,
+        email: email // Use validated email from modal
+      }
+    }
+
+    const emailResult = await emailService.sendBookingConfirmation(bookingDataWithValidatedEmail)
     
     res.json({
       success: true,
@@ -285,7 +334,6 @@ export const sendBookingEmail = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error('Error sending booking email:', error)
     
-    // Determine if it's an email service error or other error
     let errorMessage = 'Failed to send booking confirmation email'
     if (error.message.includes('Email service not initialized')) {
       errorMessage = 'Email service is not properly configured'

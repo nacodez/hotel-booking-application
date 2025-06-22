@@ -15,7 +15,6 @@ export const errorHandler = (err, req, res, next) => {
   let message = err.message || 'Internal server error'
   let errors = null
 
-  // Handle different types of errors
   if (err.name === 'ValidationError') {
     statusCode = 400
     message = 'Validation failed'
@@ -30,7 +29,6 @@ export const errorHandler = (err, req, res, next) => {
     statusCode = 400
     message = 'Invalid resource ID'
   } else if (err.code === 11000) {
-    // Duplicate key error
     statusCode = 400
     message = 'Duplicate resource'
   } else if (err.name === 'SyntaxError' && err.status === 400 && 'body' in err) {
@@ -44,7 +42,6 @@ export const errorHandler = (err, req, res, next) => {
     message = 'Payload too large'
   }
 
-  // Firebase specific errors
   if (err.code?.startsWith('auth/')) {
     statusCode = 400
     switch (err.code) {
@@ -92,7 +89,6 @@ export const notFound = (req, res, next) => {
   next(error)
 }
 
-// Custom error classes
 export class AppError extends Error {
   constructor(message, statusCode) {
     super(message)

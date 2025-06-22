@@ -1,7 +1,5 @@
 import React from 'react'
 import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary'
-
-// Custom error fallback component
 function ErrorFallback({ error, resetErrorBoundary }) {
   return (
     <div className="error-boundary-container">
@@ -60,8 +58,6 @@ function ErrorFallback({ error, resetErrorBoundary }) {
     </div>
   )
 }
-
-// Page-level error fallback for critical errors
 function PageErrorFallback({ error, resetErrorBoundary }) {
   return (
     <div className="page-error-container">
@@ -104,8 +100,6 @@ function PageErrorFallback({ error, resetErrorBoundary }) {
     </div>
   )
 }
-
-// Component-level error fallback for minor errors
 function ComponentErrorFallback({ error, resetErrorBoundary, componentName = 'Component' }) {
   return (
     <div className="component-error-container">
@@ -137,19 +131,16 @@ function ComponentErrorFallback({ error, resetErrorBoundary, componentName = 'Co
   )
 }
 
-// Error logging function
 function logErrorToService(error, errorInfo) {
-  // In production, you would send this to your error tracking service
+
   if (import.meta.env.VITE_ENABLE_LOGGING === 'true') {
-    console.group('🚨 Error Boundary Caught Error')
+    console.group(' Error Boundary Caught Error')
     console.error('Error:', error)
     console.error('Error Info:', errorInfo)
     console.groupEnd()
   }
-
-  // Send to external error tracking service in production
   if (import.meta.env.VITE_SENTRY_DSN && typeof window !== 'undefined') {
-    // Example: Sentry error reporting
+
     try {
       window.Sentry?.captureException(error, {
         contexts: {
@@ -163,8 +154,6 @@ function logErrorToService(error, errorInfo) {
     }
   }
 }
-
-// Main Error Boundary component
 export function ErrorBoundary({ 
   children, 
   fallback: FallbackComponent = ErrorFallback,
@@ -177,9 +166,8 @@ export function ErrorBoundary({
   }
 
   const handleReset = (details) => {
-    // Clear any error-related state or cache
     if (typeof window !== 'undefined') {
-      // Clear error-related session storage
+
       Object.keys(sessionStorage).forEach(key => {
         if (key.includes('error') || key.includes('retry')) {
           sessionStorage.removeItem(key)
@@ -187,8 +175,6 @@ export function ErrorBoundary({
       })
     }
   }
-
-  // Select appropriate fallback based on error level
   let fallbackComponent = FallbackComponent
   if (level === 'page') {
     fallbackComponent = PageErrorFallback
@@ -207,8 +193,6 @@ export function ErrorBoundary({
     </ReactErrorBoundary>
   )
 }
-
-// Higher-order component for wrapping components with error boundaries
 export function withErrorBoundary(Component, errorBoundaryConfig = {}) {
   const WrappedComponent = (props) => (
     <ErrorBoundary {...errorBoundaryConfig}>
@@ -220,21 +204,15 @@ export function withErrorBoundary(Component, errorBoundaryConfig = {}) {
   
   return WrappedComponent
 }
-
-// Hook for manually triggering error boundaries (useful for async errors)
 export function useErrorHandler() {
   return (error) => {
-    // Re-throw the error during render to trigger error boundary
+
     throw error
   }
 }
-
-// Global error handler for unhandled promise rejections
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', event => {
     console.error('Unhandled promise rejection:', event.reason)
-    
-    // Report to error tracking service
     if (import.meta.env.VITE_SENTRY_DSN && window.Sentry) {
       window.Sentry.captureException(event.reason)
     }

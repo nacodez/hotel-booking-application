@@ -11,17 +11,12 @@ import { verifyJWTToken } from '../middleware/authMiddleware.js'
 
 const router = express.Router()
 
-// Debug middleware to log all booking requests  
 router.use((req, res, next) => {
-  console.log(`📝 Booking route hit: ${req.method} ${req.originalUrl}`)
-  console.log('📝 Request body:', JSON.stringify(req.body, null, 2))
-  console.log('📝 Headers:', req.headers.authorization ? 'Auth present' : 'No auth')
   next()
 })
 
-// Error handling middleware
 router.use((error, req, res, next) => {
-  console.error('❌ Booking route error:', error)
+  console.error(' Booking route error:', error)
   res.status(500).json({
     success: false,
     message: error.message || 'Internal server error'
@@ -86,5 +81,33 @@ router.get('/:bookingId', verifyJWTToken, getBookingDetails)
 router.delete('/:bookingId/cancel', verifyJWTToken, cancelBookingReservation)
 
 router.post('/:bookingId/send-email', verifyJWTToken, sendBookingEmail)
+
+// Test endpoint for debugging
+router.get('/test', verifyJWTToken, async (req, res) => {
+  try {
+    
+    const { getFirestoreAdmin } = await import('../config/firebaseAdmin.js')
+    const firestore = getFirestoreAdmin()
+    
+    // Test basic Firestore connection
+    const testCollection = await firestore.collection('bookings').limit(1).get()
+    
+    res.json({
+      success: true,
+      message: 'Booking test successful',
+      user: req.user,
+      firestoreWorking: true,
+      testDocuments: testCollection.size
+    })
+  } catch (error) {
+    console.error(' Booking test failed:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Booking test failed',
+      error: error.message,
+      stack: error.stack
+    })
+  }
+})
 
 export default router

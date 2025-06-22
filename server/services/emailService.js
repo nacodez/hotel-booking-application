@@ -9,32 +9,19 @@ class EmailService {
 
   initialize() {
     try {
-      // Check if using SMTP or service-based configuration
-      if (process.env.EMAIL_SERVICE === 'smtp') {
-        this.transporter = nodemailer.createTransport({
-          host: process.env.EMAIL_HOST,
-          port: parseInt(process.env.EMAIL_PORT) || 587,
-          secure: false, // true for 465, false for other ports
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
-          }
-        })
-        console.log('✅ Email service initialized with SMTP configuration')
-        console.log(`📧 SMTP Host: ${process.env.EMAIL_HOST}:${process.env.EMAIL_PORT}`)
-      } else {
-        // Legacy Gmail service configuration
-        this.transporter = nodemailer.createTransport({
-          service: process.env.EMAIL_SERVICE || 'gmail',
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD
-          }
-        })
-        console.log('✅ Email service initialized with service configuration')
-      }
+      this.transporter = nodemailer.createTransport({
+        service: 'gmail',
+        host: process.env.EMAIL_HOST,
+        port: parseInt(process.env.EMAIL_PORT) || 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD
+        }
+      })
+      
     } catch (error) {
-      console.error('❌ Email service initialization failed:', error)
+      console.error(' Email service initialization failed:', error)
     }
   }
 
@@ -49,10 +36,7 @@ class EmailService {
     }
 
     const formatPrice = (price) => {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-      }).format(price)
+      return `S$${price.toFixed(2)}`
     }
 
     const calculateNights = () => {
@@ -162,7 +146,7 @@ class EmailService {
     <body>
         <div class="container">
             <div class="header">
-                <h1>🏨 Hotel Booking Confirmation</h1>
+                <h1> Hotel Booking Confirmation</h1>
                 <p style="margin: 10px 0 0 0;">Thank you for choosing our hotel!</p>
             </div>
             
@@ -237,7 +221,7 @@ class EmailService {
 
             <div class="footer">
                 <p><strong>Hotel Booking System</strong></p>
-                <p>Email: support@hotelbooking.com | Phone: +1 (555) 123-4567</p>
+                <p>Email: support@bookingsuite.com | Phone: +65 6789 1234</p>
                 <p>Thank you for choosing our hotel. We look forward to welcoming you!</p>
             </div>
         </div>
@@ -279,22 +263,17 @@ Thank you for choosing our hotel!
 
       let bookingData, roomData = null
 
-      // Check if we received a booking ID (string) or booking data (object)
       if (typeof bookingIdOrData === 'string') {
-        // Fetch booking data from Firestore using booking ID
         bookingData = await getDocument(COLLECTIONS.BOOKINGS, bookingIdOrData)
         if (!bookingData) {
           throw new Error('Booking not found')
         }
 
-        // Get room data for additional details
         try {
           roomData = await getDocument(COLLECTIONS.ROOMS, bookingData.roomId)
         } catch (error) {
-          console.log('Could not fetch room data:', error.message)
         }
       } else {
-        // Use the booking data directly (for existing EmailController compatibility)
         bookingData = bookingIdOrData
         
         // Try to fetch room data if roomId is available
@@ -302,25 +281,20 @@ Thank you for choosing our hotel!
           try {
             roomData = await getDocument(COLLECTIONS.ROOMS, bookingData.bookingDetails.roomId)
           } catch (error) {
-            console.log('Could not fetch room data:', error.message)
           }
         }
       }
 
-      // Generate email content
       const emailContent = this.generateBookingConfirmationEmail(bookingData, roomData)
 
-      // Send email
       const mailOptions = {
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        from: process.env.EMAIL_FROM,
         to: bookingData.guestInformation.email,
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text
       }
-
       const result = await this.transporter.sendMail(mailOptions)
-      console.log('✅ Booking confirmation email sent:', result.messageId)
       
       return {
         success: true,
@@ -328,7 +302,7 @@ Thank you for choosing our hotel!
         recipient: bookingData.guestInformation.email
       }
     } catch (error) {
-      console.error('❌ Failed to send booking confirmation email:', error)
+      console.error(' Failed to send booking confirmation email:', error.message)
       throw error
     }
   }
@@ -340,11 +314,221 @@ Thank you for choosing our hotel!
       }
       
       await this.transporter.verify()
-      console.log('✅ Email service connection verified')
       return true
     } catch (error) {
-      console.error('❌ Email service connection failed:', error)
+      console.error(' Gmail SMTP connection failed:', error.message)
       return false
+    }
+  }
+
+  generateContactMessageEmail(contactData) {
+    const { name, email, message } = contactData
+    const timestamp = new Date().toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Contact Form Message</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                margin: 0; 
+                padding: 0; 
+                background-color: #f5f5f5;
+            }
+            .container { 
+                max-width: 600px; 
+                margin: 0 auto; 
+                background-color: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            .header { 
+                background-color: #2c5282; 
+                color: white; 
+                padding: 30px; 
+                text-align: center;
+            }
+            .header h1 { 
+                margin: 0; 
+                font-size: 24px;
+            }
+            .content { 
+                padding: 30px;
+            }
+            .contact-details {
+                background-color: #f8f9fa;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+            }
+            .detail-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            .detail-row:last-child {
+                border-bottom: none;
+            }
+            .detail-label {
+                font-weight: bold;
+                color: #4a5568;
+                min-width: 100px;
+            }
+            .detail-value {
+                color: #1a1a1a;
+                flex: 1;
+                margin-left: 20px;
+            }
+            .message-section {
+                background-color: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+            }
+            .message-content {
+                color: #1a1a1a;
+                line-height: 1.6;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+            .footer {
+                background-color: #f8f9fa;
+                padding: 20px;
+                text-align: center;
+                color: #718096;
+                font-size: 14px;
+            }
+            .timestamp {
+                color: #718096;
+                font-size: 14px;
+                text-align: center;
+                margin-top: 20px;
+            }
+            @media only screen and (max-width: 600px) {
+                .container { margin: 0; border-radius: 0; }
+                .content { padding: 20px; }
+                .header { padding: 20px; }
+                .detail-row { flex-direction: column; }
+                .detail-value { margin-left: 0; margin-top: 5px; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1> New Contact Form Message</h1>
+                <p style="margin: 10px 0 0 0;">Hotel Booking System</p>
+            </div>
+            
+            <div class="content">
+                <h3 style="color: #1a1a1a; margin-bottom: 15px;">Contact Details</h3>
+                <div class="contact-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Name:</span>
+                        <span class="detail-value">${name}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Email:</span>
+                        <span class="detail-value">${email}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Received:</span>
+                        <span class="detail-value">${timestamp}</span>
+                    </div>
+                </div>
+
+                <h3 style="color: #1a1a1a; margin-bottom: 15px;">Message</h3>
+                <div class="message-section">
+                    <div class="message-content">${message}</div>
+                </div>
+
+                <div style="background-color: #e6fffa; border-left: 4px solid #48bb78; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px 0; color: #22543d;">Quick Actions</h4>
+                    <p style="margin: 0; color: #22543d;">
+                        Reply directly to this email to respond to <strong>${name}</strong> at <strong>${email}</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p><strong>Hotel Booking System - Admin Notification</strong></p>
+                <p>This message was sent through the contact form on your website.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `
+
+    return {
+      subject: `New Contact Form Message from ${name}`,
+      html: htmlContent,
+      text: `
+New Contact Form Message
+
+From: ${name}
+Email: ${email}
+Received: ${timestamp}
+
+Message:
+${message}
+
+---
+Reply to this email to respond directly to the sender.
+Hotel Booking System - Admin Notification
+      `
+    }
+  }
+
+  async sendContactMessage(contactData) {
+    try {
+      if (!this.transporter) {
+        throw new Error('Email service not initialized')
+      }
+
+      const { name, email, message } = contactData
+
+      if (!name || !email || !message) {
+        throw new Error('Missing required contact information')
+      }
+
+      const adminEmail = process.env.EMAIL_USER || 'nacodezz@gmail.com'
+
+      const emailContent = this.generateContactMessageEmail(contactData)
+
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: adminEmail,
+        replyTo: email, // Allow admin to reply directly to sender
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text
+      }
+      const result = await this.transporter.sendMail(mailOptions)
+      
+      return {
+        success: true,
+        messageId: result.messageId,
+        recipient: adminEmail
+      }
+    } catch (error) {
+      console.error(' Failed to send contact message:', error.message)
+      throw error
     }
   }
 
@@ -354,13 +538,13 @@ Thank you for choosing our hotel!
       const isConnected = await this.testEmailConnection()
       return {
         success: isConnected,
-        message: isConnected ? 'Email service connection verified' : 'Email service connection failed',
+        message: isConnected ? 'Gmail SMTP connection verified' : 'Gmail SMTP connection failed',
         error: isConnected ? null : 'Connection test failed'
       }
     } catch (error) {
       return {
         success: false,
-        message: 'Email service connection failed',
+        message: 'Gmail SMTP connection failed',
         error: error.message
       }
     }

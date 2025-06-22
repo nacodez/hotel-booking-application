@@ -8,10 +8,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
-      // PWA temporarily disabled due to dependency installation issues
+
     ],
     
-    // Build optimizations
+
     build: {
       target: 'esnext',
       minify: 'terser',
@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            // Vendor chunks for better caching
+
             vendor: ['react', 'react-dom'],
             router: ['react-router-dom'],
             firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: mode !== 'production'
     },
     
-    // Development server configuration
+
     server: {
       port: 3000,
       host: true,
@@ -49,13 +49,13 @@ export default defineConfig(({ mode }) => {
       }
     },
     
-    // Preview server configuration
+
     preview: {
       port: 3000,
       host: true
     },
     
-    // Path resolution
+
     resolve: {
       alias: {
         '@': resolve(__dirname, './src'),
@@ -68,7 +68,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     
-    // CSS configuration
+
     css: {
       devSourcemap: mode !== 'production',
       modules: {
@@ -81,13 +81,13 @@ export default defineConfig(({ mode }) => {
       }
     },
     
-    // Environment variables
+
     define: {
       __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
       __BUILD_TIME__: JSON.stringify(new Date().toISOString())
     },
     
-    // Optimization
+
     optimizeDeps: {
       include: ['react', 'react-dom', 'react-router-dom', 'axios'],
       exclude: ['@vite/client', '@vite/env']

@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { hotelBookingAPI } from '../services/apiService'
 import BookingProgressIndicator from '../components/BookingProgressIndicator'
-import DateSummaryBar from '../components/DateSummaryBar'
 
 const BookingConfirmationPage = () => {
   const location = useLocation()
@@ -30,14 +29,12 @@ const BookingConfirmationPage = () => {
     return null
   }
 
-  // Validation functions
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
   }
 
   const validatePhoneNumber = (phone) => {
-    // Allow various international formats
     const phoneRegex = /^[\+]?[\d\s\-\(\)]{8,}$/
     return phoneRegex.test(phone.replace(/\s/g, ''))
   }
@@ -75,7 +72,6 @@ const BookingConfirmationPage = () => {
       [name]: value
     }))
 
-    // Real-time validation
     if (validationErrors[name]) {
       const newErrors = { ...validationErrors }
       delete newErrors[name]
@@ -86,10 +82,6 @@ const BookingConfirmationPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Debug: Log auth state
-    console.log('🔍 Booking - Current user:', currentUser)
-    console.log('🔍 Booking - Auth token exists:', !!localStorage.getItem('authToken'))
-    
     const errors = validateForm()
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors)
@@ -99,12 +91,8 @@ const BookingConfirmationPage = () => {
     setIsProcessing(true)
     
     try {
-      // Debug: Check if auth token exists
       const authToken = localStorage.getItem('authToken')
-      console.log('Auth token exists:', !!authToken)
-      console.log('Current user:', currentUser)
       
-      // Calculate totals for booking
       const calculateNights = () => {
         const checkIn = new Date(bookingDetails.checkInDate)
         const checkOut = new Date(bookingDetails.checkOutDate)
@@ -115,7 +103,6 @@ const BookingConfirmationPage = () => {
       const roomRate = nights * bookingDetails.pricePerNight
       const totalAmount = roomRate // You can add taxes later
       
-      // Create the booking reservation
       const bookingPayload = {
         roomId: bookingDetails.roomId,
         roomName: bookingDetails.roomName || 'Selected Room',
@@ -127,13 +114,9 @@ const BookingConfirmationPage = () => {
         pricePerNight: bookingDetails.pricePerNight
       }
       
-      console.log('Creating booking with payload:', bookingPayload)
-      console.log('🔑 Token being sent:', !!authToken)
-      
       const response = await hotelBookingAPI.createBookingReservation(bookingPayload)
       
       if (response.success) {
-        // Navigate to final confirmation with booking ID
         navigate('/booking/final-confirmation', {
           state: {
             bookingDetails,
@@ -153,7 +136,6 @@ const BookingConfirmationPage = () => {
     }
   }
 
-  // Calculate booking totals
   const calculateNights = () => {
     const checkIn = new Date(bookingDetails.checkInDate)
     const checkOut = new Date(bookingDetails.checkOutDate)
@@ -175,11 +157,31 @@ const BookingConfirmationPage = () => {
   }
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-SG', {
-      style: 'currency',
-      currency: 'SGD',
-      minimumFractionDigits: 2
-    }).format(price).replace('SGD', 'S$')
+    return `S$${price.toFixed(2)}`
+  }
+
+  const formatDateForDisplay = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    }).toUpperCase()
+  }
+
+  const getDateRangeDisplay = () => {
+    const checkInFormatted = formatDateForDisplay(bookingDetails.checkInDate)
+    const checkOutFormatted = formatDateForDisplay(bookingDetails.checkOutDate)
+    const nightText = nights === 1 ? 'NIGHT' : 'NIGHTS'
+    const guestText = bookingDetails.guestCount === 1 ? 'GUEST' : 'GUESTS'
+    
+    return (
+      <div>
+        <div>{checkInFormatted} + {checkOutFormatted}</div>
+        <div style={{ marginTop: '4px' }}>{nights} {nightText}</div>
+        <div style={{ marginTop: '16px', fontSize: '13px' }}>ROOM: {bookingDetails.guestCount} {guestText}</div>
+      </div>
+    )
   }
 
   const { nights, roomRate, taxAndService, total } = calculateTotals()
@@ -192,15 +194,9 @@ const BookingConfirmationPage = () => {
   return (
     <div className="contact-information-page">
       <BookingProgressIndicator currentStep={3} />
-      
-      <DateSummaryBar 
-        checkInDate={bookingDetails.checkInDate}
-        checkOutDate={bookingDetails.checkOutDate}
-        guestCount={bookingDetails.guestCount}
-      />
 
       <div className="container">
-        {/* Mobile Summary Toggle */}
+
         <div className="mobile-summary-toggle">
           <button 
             className="summary-toggle-btn"
@@ -210,16 +206,59 @@ const BookingConfirmationPage = () => {
             <span className="toggle-icon">{showSummary ? '−' : '+'}</span>
           </button>
         </div>
+        <div className={`booking-summary-section ${showSummary ? 'show' : ''}`}>
+          <div className="booking-summary-container">
+            <h2 className="summary-title">Booking Summary</h2>
+            <div className="room-summary">
+              <div className="date-range-display">
+                {getDateRangeDisplay()}
+              </div>
+              <div className="room-image-container">
+                <img 
+                  src={bookingDetails.roomImage || 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80'} 
+                  alt={bookingDetails.roomName}
+                  className="summary-room-image"
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80'
+                  }}
+                />
+              </div>
+            </div>
+            <div className="price-breakdown">
+              <h4 className="breakdown-title">{bookingDetails.roomName}</h4>
+              
+              <div className="price-item">
+                <span className="price-label">Room rate ({nights} {nights === 1 ? 'night' : 'nights'})</span>
+                <span className="price-value">{formatPrice(roomRate)}</span>
+              </div>
+              
+              <div className="price-item">
+                <span className="price-label">Tax & Service Charges (9%)</span>
+                <span className="price-value">{formatPrice(taxAndService)}</span>
+              </div>
+              
+              <div className="price-item total">
+                <span className="price-label">Total Amount</span>
+                <span className="price-value">{formatPrice(total)}</span>
+              </div>
+            </div>
+            <div className="summary-footer">
+              <p className="cancellation-policy">
+                Free cancellation until 24 hours before check-in
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="contact-content">
-          {/* Contact Form */}
+
           <div className="contact-form-section">
             <div className="contact-form-container">
               <h1 className="page-title">Contact Information</h1>
               <p className="page-subtitle">Please provide your contact details to complete the booking.</p>
 
               <form onSubmit={handleSubmit} className="contact-form">
-                {/* Title Dropdown */}
+
                 <div className="form-group">
                   <label className="form-label" htmlFor="title">Title *</label>
                   <select
@@ -236,8 +275,6 @@ const BookingConfirmationPage = () => {
                     <option value="Dr.">Dr.</option>
                   </select>
                 </div>
-
-                {/* First Name and Last Name */}
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label" htmlFor="firstName">First Name *</label>
@@ -271,8 +308,6 @@ const BookingConfirmationPage = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Email */}
                 <div className="form-group">
                   <label className="form-label" htmlFor="email">Email Address *</label>
                   <input
@@ -288,8 +323,6 @@ const BookingConfirmationPage = () => {
                     <div className="form-error">{validationErrors.email}</div>
                   )}
                 </div>
-
-                {/* Phone Number */}
                 <div className="form-group">
                   <label className="form-label" htmlFor="phoneNumber">Phone Number *</label>
                   <input
@@ -306,8 +339,6 @@ const BookingConfirmationPage = () => {
                     <div className="form-error">{validationErrors.phoneNumber}</div>
                   )}
                 </div>
-
-                {/* Special Requests */}
                 <div className="form-group">
                   <label className="form-label" htmlFor="specialRequests">Special Requests</label>
                   <textarea
@@ -320,8 +351,6 @@ const BookingConfirmationPage = () => {
                     placeholder="Any special requests or dietary requirements..."
                   />
                 </div>
-
-                {/* Submit Button */}
                 <button 
                   type="submit" 
                   className="proceed-btn"
@@ -332,47 +361,26 @@ const BookingConfirmationPage = () => {
               </form>
             </div>
           </div>
-
-          {/* Booking Summary Sidebar */}
-          <div className={`booking-summary-section ${showSummary ? 'show' : ''}`}>
+          <div className="booking-summary-section desktop-summary">
             <div className="booking-summary-container">
               <h2 className="summary-title">Booking Summary</h2>
-              
-              {/* Room Details */}
               <div className="room-summary">
+                <div className="date-range-display">
+                  {getDateRangeDisplay()}
+                </div>
                 <div className="room-image-container">
                   <img 
-                    src="/placeholder-room.jpg" 
+                    src={bookingDetails.roomImage || 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80'} 
                     alt={bookingDetails.roomName}
                     className="summary-room-image"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80'
+                    }}
                   />
                 </div>
-                <div className="room-details">
-                  <h3 className="room-name">{bookingDetails.roomName}</h3>
-                  <div className="stay-dates">
-                    <div className="date-info">
-                      <span className="date-label">Check-in:</span>
-                      <span className="date-value">{new Date(bookingDetails.checkInDate).toLocaleDateString()}</span>
-                    </div>
-                    <div className="date-info">
-                      <span className="date-label">Check-out:</span>
-                      <span className="date-value">{new Date(bookingDetails.checkOutDate).toLocaleDateString()}</span>
-                    </div>
-                    <div className="date-info">
-                      <span className="date-label">Nights:</span>
-                      <span className="date-value">{nights}</span>
-                    </div>
-                    <div className="date-info">
-                      <span className="date-label">Guests:</span>
-                      <span className="date-value">{bookingDetails.guestCount}</span>
-                    </div>
-                  </div>
-                </div>
               </div>
-
-              {/* Price Breakdown */}
               <div className="price-breakdown">
-                <h4 className="breakdown-title">Price Breakdown</h4>
+                <h4 className="breakdown-title">{bookingDetails.roomName}</h4>
                 
                 <div className="price-item">
                   <span className="price-label">Room rate ({nights} {nights === 1 ? 'night' : 'nights'})</span>
@@ -384,15 +392,11 @@ const BookingConfirmationPage = () => {
                   <span className="price-value">{formatPrice(taxAndService)}</span>
                 </div>
                 
-                <div className="price-divider"></div>
-                
                 <div className="price-item total">
                   <span className="price-label">Total Amount</span>
                   <span className="price-value">{formatPrice(total)}</span>
                 </div>
               </div>
-
-              {/* Additional Info */}
               <div className="summary-footer">
                 <p className="cancellation-policy">
                   Free cancellation until 24 hours before check-in

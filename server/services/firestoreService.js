@@ -58,7 +58,6 @@ export class UserService {
       throw new NotFoundError('User not found')
     }
     
-    // Remove sensitive information
     const { password, refreshToken, ...safeUser } = user
     return safeUser
   }
@@ -244,7 +243,6 @@ export class RoomService {
 
     const rooms = await queryDocuments(COLLECTIONS.ROOMS, queryFilters, orderBy)
 
-    // Filter out rooms with overlapping bookings
     const availableRooms = []
     for (const room of rooms) {
       const isAvailable = await this.checkRoomAvailability(room.id, checkInDate, checkOutDate)
@@ -269,7 +267,6 @@ export class RoomService {
       const bookingCheckIn = new Date(booking.checkInDate)
       const bookingCheckOut = new Date(booking.checkOutDate)
 
-      // Check for date overlap
       if (checkIn < bookingCheckOut && checkOut > bookingCheckIn) {
         return false
       }
@@ -311,7 +308,6 @@ export class BookingService {
       }
     }
 
-    // Validate dates
     const checkIn = new Date(bookingData.checkInDate)
     const checkOut = new Date(bookingData.checkOutDate)
     const today = new Date()
@@ -325,7 +321,6 @@ export class BookingService {
       throw new ValidationError('Check-out date must be after check-in date')
     }
 
-    // Check room availability
     const isAvailable = await RoomService.checkRoomAvailability(
       bookingData.roomId, 
       bookingData.checkInDate, 
@@ -336,7 +331,6 @@ export class BookingService {
       throw new ValidationError('Room is not available for the selected dates')
     }
 
-    // Get room details for pricing
     const room = await RoomService.getRoomById(bookingData.roomId)
     const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24))
     const roomTotal = room.price * nights
@@ -444,7 +438,6 @@ export class BookingService {
       throw new ValidationError('Only confirmed or pending bookings can be cancelled')
     }
 
-    // Calculate refund amount based on cancellation policy
     const checkInDate = new Date(booking.checkInDate)
     const now = new Date()
     const hoursUntilCheckIn = (checkInDate - now) / (1000 * 60 * 60)
@@ -516,7 +509,6 @@ export class BookingService {
 
     const bookings = await queryDocuments(COLLECTIONS.BOOKINGS, queryFilters)
     
-    // Filter by date range
     const start = new Date(startDate)
     const end = new Date(endDate)
     
