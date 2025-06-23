@@ -27,7 +27,7 @@ This is a complete hotel booking platform with:
 **Database & Services**
 - Firestore (NoSQL database)
 - Firebase Auth
-- Mailgun for emails
+- Gmail for emails
 
 ## Quick Start
 
@@ -97,7 +97,7 @@ VITE_FIREBASE_APP_ID=1:123456789:web:abcdef123456
 ### 4. Run the App
 ```bash
 # Start backend (from server folder)
-npm run dev
+npm start
 
 # Start frontend (from client folder) 
 npm run dev
