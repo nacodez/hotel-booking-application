@@ -11,6 +11,9 @@ export const initializeFirebaseAdmin = () => {
     return admin
   }
 
+  const isDemoMode = process.env.FIREBASE_PROJECT_ID === 'demo-project' || 
+                     process.env.USE_EMULATOR === 'true'
+
   try {
     if (admin.apps.length > 0) {
       console.log('Firebase Admin already initialized')
@@ -18,9 +21,6 @@ export const initializeFirebaseAdmin = () => {
       firebaseAdminInitialized = true
       return admin
     }
-
-    const isDemoMode = process.env.FIREBASE_PROJECT_ID === 'demo-project' || 
-                       process.env.USE_EMULATOR === 'true'
 
     if (isDemoMode) {
       console.log('Initializing Firebase Admin in emulator mode')
