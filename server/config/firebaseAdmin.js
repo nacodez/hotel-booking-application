@@ -60,11 +60,28 @@ export const initializeFirebaseAdmin = () => {
         hasNewlines: process.env.FIREBASE_PRIVATE_KEY?.includes('\\n') || false
       })
       
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY
+      if (privateKey) {
+
+        privateKey = privateKey.replace(/\\n/g, '\n')
+        
+        // Ensure proper PEM format
+        if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+          throw new Error('Invalid private key format - must start with -----BEGIN PRIVATE KEY-----')
+        }
+        if (!privateKey.endsWith('-----END PRIVATE KEY-----\n')) {
+          if (!privateKey.endsWith('-----END PRIVATE KEY-----')) {
+            privateKey += '\n-----END PRIVATE KEY-----'
+          }
+          privateKey += '\n'
+        }
+      }
+
       const serviceAccount = {
         type: "service_account",
         project_id: process.env.FIREBASE_PROJECT_ID,
         private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: privateKey,
         client_email: process.env.FIREBASE_CLIENT_EMAIL,
         client_id: process.env.FIREBASE_CLIENT_ID,
         auth_uri: "https://accounts.google.com/o/oauth2/auth",
@@ -76,7 +93,8 @@ export const initializeFirebaseAdmin = () => {
       console.log(' Service account config:', {
         project_id: serviceAccount.project_id,
         client_email: serviceAccount.client_email,
-        private_key_preview: serviceAccount.private_key?.substring(0, 50) + '...'
+        private_key_preview: serviceAccount.private_key?.substring(0, 50) + '...',
+        private_key_valid: serviceAccount.private_key?.includes('-----BEGIN PRIVATE KEY-----') && serviceAccount.private_key?.includes('-----END PRIVATE KEY-----')
       })
 
       admin.initializeApp({
