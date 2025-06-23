@@ -45,6 +45,10 @@ export const initializeFirebaseAdmin = () => {
     } else {
       console.log(' Initializing Firebase Admin in production mode...')
       
+      // Prevent Firebase from looking for default credentials
+      delete process.env.GOOGLE_APPLICATION_CREDENTIALS
+      delete process.env.GCLOUD_PROJECT
+      
       const requiredFields = ['FIREBASE_PROJECT_ID', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL']
       for (const field of requiredFields) {
         if (!process.env[field]) {
@@ -102,6 +106,8 @@ export const initializeFirebaseAdmin = () => {
         projectId: process.env.FIREBASE_PROJECT_ID
       })
 
+      db = admin.firestore()
+      
       // Configure Firestore settings for production
       const settings = {
         timestampsInSnapshots: true,
@@ -112,8 +118,7 @@ export const initializeFirebaseAdmin = () => {
         settings.ssl = true
         settings.preferRest = true // Use REST API instead of gRPC in production
       }
-
-      db = admin.firestore()
+      
       db.settings(settings)
 
       firebaseAdminInitialized = true

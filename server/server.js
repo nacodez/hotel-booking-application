@@ -17,10 +17,16 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 5000
 
+// Trust Railway's proxy
+app.set('trust proxy', true)
+
 const rateLimitConfig = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP, please try again later.'
+  message: 'Too many requests from this IP, please try again later.',
+  trustProxy: true, // Trust Railway's proxy headers
+  standardHeaders: true,
+  legacyHeaders: false
 })
 
 app.use(helmet())
