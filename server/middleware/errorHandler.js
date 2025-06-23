@@ -42,7 +42,7 @@ export const errorHandler = (err, req, res, next) => {
     message = 'Payload too large'
   }
 
-  if (err.code?.startsWith('auth/')) {
+  if (typeof err.code === 'string' && err.code.startsWith('auth/')) {
     statusCode = 400
     switch (err.code) {
       case 'auth/user-not-found':

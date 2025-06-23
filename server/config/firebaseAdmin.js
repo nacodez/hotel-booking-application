@@ -84,7 +84,19 @@ export const initializeFirebaseAdmin = () => {
         projectId: process.env.FIREBASE_PROJECT_ID
       })
 
+      // Configure Firestore settings for production
+      const settings = {
+        timestampsInSnapshots: true,
+        ignoreUndefinedProperties: true
+      }
+      
+      if (process.env.NODE_ENV === 'production') {
+        settings.ssl = true
+        settings.preferRest = true // Use REST API instead of gRPC in production
+      }
+
       db = admin.firestore()
+      db.settings(settings)
 
       firebaseAdminInitialized = true
       console.log(' Firebase Admin initialized in production mode')
