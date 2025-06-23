@@ -66,19 +66,46 @@ export const initializeFirebaseAdmin = () => {
       
       let privateKey = process.env.FIREBASE_PRIVATE_KEY
       if (privateKey) {
-
+        console.log(' Raw private key preview:', privateKey.substring(0, 100) + '...')
+        
+        // Replace literal \n with actual newlines
         privateKey = privateKey.replace(/\\n/g, '\n')
+        
+        // Try to parse as JSON first (in case it's encoded as JSON string)
+        try {
+          if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+            privateKey = JSON.parse(privateKey)
+            privateKey = privateKey.replace(/\\n/g, '\n')
+          }
+        } catch (e) {
+          // Not JSON, continue with original
+        }
+        
+        // If it doesn't start with BEGIN, it might be base64 encoded
+        if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+          console.log(' Private key appears to be base64 encoded, attempting to decode...')
+          try {
+            privateKey = Buffer.from(privateKey, 'base64').toString('utf8')
+          } catch (e) {
+            console.log(' Base64 decode failed, treating as raw string')
+          }
+        }
         
         // Ensure proper PEM format
         if (!privateKey.startsWith('-----BEGIN PRIVATE KEY-----')) {
+          console.error(' Private key format error. Key should start with -----BEGIN PRIVATE KEY-----')
+          console.error(' Actual start:', privateKey.substring(0, 50))
           throw new Error('Invalid private key format - must start with -----BEGIN PRIVATE KEY-----')
         }
+        
         if (!privateKey.endsWith('-----END PRIVATE KEY-----\n')) {
           if (!privateKey.endsWith('-----END PRIVATE KEY-----')) {
             privateKey += '\n-----END PRIVATE KEY-----'
           }
           privateKey += '\n'
         }
+        
+        console.log(' Private key format validated successfully')
       }
 
       const serviceAccount = {
