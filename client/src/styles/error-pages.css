@@ -17,10 +17,6 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.error-icon {
-  margin-bottom: 1.5rem;
-}
-
 .error-title {
   font-size: 1.5rem;
   font-weight: 600;
@@ -181,8 +177,8 @@
 /* 404 Page Styles */
 .not-found-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #f5f5f5 0%, #f5f5f5 100%);
+  color: #1a1a1a;
 }
 
 .not-found-container {
@@ -192,14 +188,19 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 0.75rem;
 }
 
 .not-found-header {
-  padding: 1rem 0 2rem;
+  padding: 1rem 0 1rem;
+  display: flex;
+  justify-content: center;
 }
 
 .not-found-logo {
-  color: white;
+  color: #1a1a1a;;
   text-decoration: none;
   font-size: 1.5rem;
   font-weight: 700;
@@ -227,11 +228,10 @@
 .error-code {
   font-size: 8rem;
   font-weight: 900;
-  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  background: linear-gradient(45deg, #2c5282, #3182ce);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 1rem;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -252,17 +252,20 @@
   font-weight: 700;
   margin-bottom: 1rem;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  color: #1a1a1a;
 }
 
 .not-found-subtitle {
   font-size: 1.25rem;
+   color: #718096;
   opacity: 0.9;
   margin-bottom: 2rem;
   line-height: 1.6;
 }
 
 .not-found-path {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f5f5f5;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 1rem;
   margin: 2rem 0;
@@ -355,24 +358,25 @@
 }
 
 .suggestion-card {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;;
+  border-radius: 0.75rem;
   padding: 1.5rem 1rem;
   text-decoration: none;
-  color: white;
+  color: #1a1a1a;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .suggestion-card:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #f5f5f5;
+  border-color: #2c5282;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  box-shadow:  0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);;
 }
 
 .suggestion-icon {
@@ -418,7 +422,8 @@
 }
 
 .help-details {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f5f5f5;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 1rem;
   backdrop-filter: blur(10px);
@@ -427,7 +432,6 @@
 .help-details summary {
   cursor: pointer;
   font-weight: 600;
-  margin-bottom: 1rem;
   list-style: none;
 }
 
